@@ -1,0 +1,16 @@
+name: dafx22_fno
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - default
+dependencies:
+  - python=3.9
+  - pip
+  - numpy
+  - ipykernel
+  - nvidia::cudatoolkit=11.6
+  - pytorch::pytorch
+  - matplotlib
+  - scipy
+  - black

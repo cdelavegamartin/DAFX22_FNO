@@ -9,7 +9,7 @@ from dafx22_fno.modules.fno_ref import FNO_Markov_2d
 import matplotlib.pyplot as plt
 
 dur = 0.0007
-num_variations = 110
+num_variations = 10
 validation_split = 0.1
 
 fs = 48000
@@ -20,14 +20,14 @@ room_aspect_ratio = 0.95
 
 
 if len(sys.argv) == 1:
-    epochs = 5
+    epochs = 1
 else:
     epochs = int(sys.argv[1])
 print("\r", f"Starting training for {epochs} epochs", end="")
 
 width = 8
 device = "cuda"
-batch_size = 100
+batch_size = 10
 
 num_example_timesteps = 100
 
@@ -170,8 +170,10 @@ from datetime import datetime
 import os
 
 now = datetime.now()
-directory = "2d_wave_" + now.strftime("%H_%M_%S")
-os.mkdir(directory)
+directory = os.path.join("output", "2d_wave_" + now.strftime("%H_%M_%S"))
+print("\n")
+print(directory)
+os.makedirs(directory)
 plt.plot(loss_history)
 plt.savefig(directory + "/loss_history.pdf")
 

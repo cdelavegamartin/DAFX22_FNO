@@ -20,3 +20,6 @@ legacy/Notebooks/.ipynb_checkpoints/WaveSolver-checkpoint.py
 *__pycache__*
 *ipynb_checkpoints*
 *.asv
+
+# Output directories
+output/

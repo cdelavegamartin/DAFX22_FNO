@@ -9,7 +9,7 @@ from dafx22_fno.modules.fno_ref import FNO_Markov_2d
 import matplotlib.pyplot as plt
 
 dur = 0.0007
-num_variations = 1024
+num_variations = 110
 validation_split = 0.1
 
 fs = 48000
@@ -20,14 +20,14 @@ room_aspect_ratio = 0.95
 
 
 if len(sys.argv) == 1:
-    epochs = 5000
+    epochs = 5
 else:
     epochs = int(sys.argv[1])
 print("\r", f"Starting training for {epochs} epochs", end="")
 
 width = 8
 device = "cuda"
-batch_size = 400
+batch_size = 100
 
 num_example_timesteps = 100
 
@@ -45,6 +45,10 @@ training_input = torch.zeros((num_variations, 1, solver.numXs, solver.numYs, 3))
 training_output = torch.zeros(
     (num_variations, solver.numT - 1, solver.numXs, solver.numYs, 3)
 )
+print("\n")
+print(f"training input shape:{training_input.shape}")
+print("\r", f"training output shape:{training_output.shape}")
+print("\n")
 for i in range(num_variations):
     if i < num_variations // 2:
         pos_x = np.random.rand(1)
@@ -71,6 +75,7 @@ normalization_multiplier = 1 / torch.std(training_output, dim=(0, 1, 2, 3))
 training_input *= normalization_multiplier
 training_output *= normalization_multiplier
 
+# split the generated data into training and validation
 num_validation = int(np.ceil(validation_split * num_variations))
 validation_input = training_input[-num_validation:, ...]
 validation_output = training_output[-num_validation:, ...]
@@ -129,6 +134,9 @@ loss_history = np.zeros((epochs, 3))
 for ep in range(epochs):
     tic = time.time()
     for input, output in dataloader:
+        print(f"input shape:{input.shape}")
+        print(f"output shape:{output.shape}")
+        print("\n")
         input, output = input.to(device), output.to(device)
         optimizer.zero_grad()
         model_input = input[:, 0, ...]

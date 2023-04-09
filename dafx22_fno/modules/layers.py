@@ -100,6 +100,7 @@ class FourierConv2d(torch.nn.Module):
         print(f"FourierConv2d x_ft.shape: {x_ft.shape}")
         print(f"FourierConv2d x_ft.dtype: {x_ft.dtype}")
         out_ft = torch.zeros_like(x_ft)
+        print(f"FourierConv2d out_ft.shape: {out_ft.shape}")
         print("Do einsum")
         out_ft[:, :, : self.size_x, : self.size_y] = torch.einsum(
             "bixy,ioxy->boxy",

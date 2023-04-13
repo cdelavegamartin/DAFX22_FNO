@@ -58,8 +58,10 @@ print("\n")
 
 # Generate training data
 for i in range(num_variations):
-    ctr = np.random.rand(2)
-    wid = np.random.rand(1) * 0.2
+    ctr = 0.3 * np.random.rand(2) + 0.5
+    # calculate minimum distance to edge of plate
+
+    wid = np.random.rand(1) * 0.15
     u0_max = np.random.rand(1)
     v0_max = 0.0
     w0 = solver.create_pluck(ctr, wid, u0_max, v0_max)

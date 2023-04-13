@@ -74,50 +74,50 @@ class FourierConv2d(torch.nn.Module):
                 )
             )
         )
-        print(f"FourierConv2d weights.shape: {self.weights.shape}")
-        print(
-            f"FourierConv2d weights.shape as complex: {torch.view_as_complex(self.weights).shape}"
-        )
+        # print(f"FourierConv2d weights.shape: {self.weights.shape}")
+        # print(
+            # f"FourierConv2d weights.shape as complex: {torch.view_as_complex(self.weights).shape}"
+        # )
         self.biases = torch.nn.Parameter(
             torch.view_as_real(
                 (1 / out_channels)
                 * torch.rand(out_channels, self.size_x, self.size_y, dtype=torch.cfloat)
             )
         )
-        print(f"FourierConv2d biases.shape: {self.biases.shape}")
+        # print(f"FourierConv2d biases.shape: {self.biases.shape}")
         self.bias = bias
         self.periodic = periodic
 
     def forward(self, x):
-        print(f"FourierConv2d forward pass")
+        # print(f"FourierConv2d forward pass")
         if not self.periodic:
             x = torch.nn.functional.pad(x, [0, self.size_y, 0, self.size_x])
-        print(f"FourierConv2d x.shape after padding: {x.shape}")
-        print(f"FourierConv2d x.dtype after padding: {x.dtype}")
-        print(f"Do FFT")
+        # print(f"FourierConv2d x.shape after padding: {x.shape}")
+        # print(f"FourierConv2d x.dtype after padding: {x.dtype}")
+        # print(f"Do FFT")
 
         x_ft = torch.fft.rfft2(x)
-        print(f"FourierConv2d x_ft.shape: {x_ft.shape}")
-        print(f"FourierConv2d x_ft.dtype: {x_ft.dtype}")
+        # print(f"FourierConv2d x_ft.shape: {x_ft.shape}")
+        # print(f"FourierConv2d x_ft.dtype: {x_ft.dtype}")
         out_ft = torch.zeros_like(x_ft)
-        print(f"FourierConv2d out_ft.shape: {out_ft.shape}")
-        print("Do einsum")
+        # print(f"FourierConv2d out_ft.shape: {out_ft.shape}")
+        # print("Do einsum")
         out_ft[:, :, : self.size_x, : self.size_y] = torch.einsum(
             "bixy,ioxy->boxy",
             x_ft[:, :, : self.size_x, : self.size_y],
             torch.view_as_complex(self.weights),
         )
         if self.bias:
-            print("Add bias")
+            # print("Add bias")
             out_ft[:, :, : self.size_x, : self.size_y] += torch.view_as_complex(
                 self.biases
             )
-        print("Do inverse FFT")
+        # print("Do inverse FFT")
         out = torch.fft.irfft2(out_ft)
-        print(f"FourierConv2d out.shape before periodic: {out.shape}")
+        # print(f"FourierConv2d out.shape before periodic: {out.shape}")
         if not self.periodic:
             out = out[..., : self.size_x, : self.size_y]
-        print(f"FourierConv2d out.shape after periodic: {out.shape}")
+        # print(f"FourierConv2d out.shape after periodic: {out.shape}")
         return out
 
 
@@ -193,4 +193,81 @@ class FourierConv3d(torch.nn.Module):
         out = torch.fft.irfft3(out_ft)
         if not self.periodic:
             out = out[..., : self.size_x, : self.size_y, : self.size_z]
+        return out
+
+
+class FourierDense2d(torch.nn.Module):
+    def __init__(
+        self, in_channels, out_channels, size_x, size_y, bias=True, periodic=False
+    ):
+        super(FourierDense2d, self).__init__()
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        
+        if not periodic:
+            self.size_x = size_x
+            self.size_y = size_y
+        else:
+            self.size_x = size_x // 2
+            self.size_y = size_y // 2
+
+        self.weights = torch.nn.Parameter(
+            torch.view_as_real(
+                (1 / (in_channels * out_channels))
+                * torch.rand(
+                    in_channels,
+                    out_channels,
+                    self.size_x,
+                    self.size_x,
+                    self.size_y,
+                    self.size_y,
+                    dtype=torch.cfloat,
+                )
+            )
+        )
+        # print(f"FourierConv2d weights.shape: {self.weights.shape}")
+        # print(
+            # f"FourierConv2d weights.shape as complex: {torch.view_as_complex(self.weights).shape}"
+        # )
+        self.biases = torch.nn.Parameter(
+            torch.view_as_real(
+                (1 / out_channels)
+                * torch.rand(out_channels, self.size_x, self.size_y, dtype=torch.cfloat)
+            )
+        )
+        # print(f"FourierConv2d biases.shape: {self.biases.shape}")
+        self.bias = bias
+        self.periodic = periodic
+
+    def forward(self, x):
+        # print(f"FourierConv2d forward pass")
+        if not self.periodic:
+            x = torch.nn.functional.pad(x, [0, self.size_y, 0, self.size_x])
+        # print(f"FourierConv2d x.shape after padding: {x.shape}")
+        # print(f"FourierConv2d x.dtype after padding: {x.dtype}")
+        # print(f"Do FFT")
+
+        x_ft = torch.fft.rfft2(x)
+        # print(f"FourierConv2d x_ft.shape: {x_ft.shape}")
+        # print(f"FourierConv2d x_ft.dtype: {x_ft.dtype}")
+        out_ft = torch.zeros_like(x_ft)
+        # print(f"FourierConv2d out_ft.shape: {out_ft.shape}")
+        # print("Do einsum")
+        out_ft[:, :, : self.size_x, : self.size_y] = torch.einsum(
+            "bixy,ioxmyn->bomn",
+            x_ft[:, :, : self.size_x, : self.size_y],
+            torch.view_as_complex(self.weights),
+        )
+        if self.bias:
+            # print("Add bias")
+            out_ft[:, :, : self.size_x, : self.size_y] += torch.view_as_complex(
+                self.biases
+            )
+        # print("Do inverse FFT")
+        out = torch.fft.irfft2(out_ft)
+        # print(f"FourierConv2d out.shape before periodic: {out.shape}")
+        if not self.periodic:
+            out = out[..., : self.size_x, : self.size_y]
+        # print(f"FourierConv2d out.shape after periodic: {out.shape}")
         return out

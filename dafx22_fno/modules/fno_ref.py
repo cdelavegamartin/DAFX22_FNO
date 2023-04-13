@@ -256,7 +256,7 @@ class SpectralConv2d(nn.Module):
         )
 
     def forward(self, x):
-        print(f"SpectralConv2d forward pass")
+        # print(f"SpectralConv2d forward pass")
         batchsize = x.shape[0]
         # Compute Fourier coeffcients up to factor of e^(- something constant)
         x_ft = torch.fft.rfft2(x)
@@ -272,8 +272,8 @@ class SpectralConv2d(nn.Module):
                 device=x.device,
             )
         )
-        print(f"SpectralConv2d x_ft.shape: {x_ft.shape}")
-        print(f"SpectralConv2d out_ft.shape: {out_ft.shape}")
+        # print(f"SpectralConv2d x_ft.shape: {x_ft.shape}")
+        # print(f"SpectralConv2d out_ft.shape: {out_ft.shape}")
         out_ft[:, :, : self.modes1, : self.modes2] = self.compl_mul2d(
             torch.view_as_real(x_ft[:, :, : self.modes1, : self.modes2]), self.weights1
         )

@@ -23,3 +23,7 @@ legacy/Notebooks/.ipynb_checkpoints/WaveSolver-checkpoint.py
 
 # Output directories
 output/
+
+# HPC job files
+hpc/**/*.job
+*.job.*

@@ -29,6 +29,14 @@ print("\r", f"Starting training for {epochs} epochs", end="")
 
 width = 8
 device = "cuda"
+
+# Set torch device
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
+
+# batchsize for training
 batch_size = 10
 
 num_example_timesteps = 100

@@ -1,5 +1,5 @@
 import torch
-from .layers import FourierConv1d, FourierConv2d
+from .layers import FourierConv1d, FourierConv2d, FourierDense2d
 
 
 class FNO_GRU_1d(torch.nn.Module):
@@ -37,11 +37,11 @@ class FNO_GRU_1d(torch.nn.Module):
         return h.permute(0, 2, 1)
 
 
-class FNO_GRU_2d(torch.nn.Module):
+class FNO_GRU_DENSE_2d(torch.nn.Module):
     def __init__(
         self, in_channels, out_channels, spatial_size_x, spatial_size_y, width
     ):
-        super(FNO_GRU_2d, self).__init__()
+        super(FNO_GRU_DENSE_2d, self).__init__()
 
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -49,15 +49,15 @@ class FNO_GRU_2d(torch.nn.Module):
 
         self.in_mapping = torch.nn.Linear(in_channels, self.width)
         # print(f"instantiate z_layer")
-        self.z_layer = FourierConv2d(
+        self.z_layer = FourierDense2d(
             self.width, self.width, spatial_size_x, spatial_size_y
         )
         # print(f"instantiate r_layer")
-        self.r_layer = FourierConv2d(
+        self.r_layer = FourierDense2d(
             self.width, self.width, spatial_size_x, spatial_size_y
         )
         # print(f"instantiate h_layer")
-        self.h_layer = FourierConv2d(
+        self.h_layer = FourierDense2d(
             self.width, self.width, spatial_size_x, spatial_size_y
         )
 

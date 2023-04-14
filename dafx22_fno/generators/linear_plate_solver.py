@@ -32,7 +32,7 @@ class LinearPlateSolver:
             if isinstance(t60[0], dict) and isinstance(t60[1], dict):
                 self.sig0, self.sig1 = self._t60_freq_dep(t60)
             else:
-                raise ValueError("t60 must be a tuple of dicts")
+                raise ValueError("t60 must be a tuple of dicts or a number")
 
         elif isinstance(t60, (int, float)):
             self.sig0 = 6 * np.log(10) / (t60)
@@ -123,7 +123,7 @@ class LinearPlateSolver:
         elif f[0] == f[1]:
             raise ValueError("frequencies must be different")
 
-        if T60[0] > T60[1]:
+        if T60[0] < T60[1]:
             raise ValueError("T60 must be decreasing with frequency")
 
         # Calculate the sig0 and sig1 parameters

@@ -228,6 +228,11 @@ class LinearPlateSolver:
             order="F",
         ).transpose(1, 0, 2)
 
+        # Convert to float32
+        u = u.astype(np.float32)
+        v = v.astype(np.float32)
+        t1 = t1.astype(np.float32)
+
         return u, v, t1
 
 

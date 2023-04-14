@@ -9,13 +9,18 @@ from dafx22_fno.modules.fno_ref import FNO_Markov_2d
 import matplotlib.pyplot as plt
 
 
-num_steps_train = 4
-num_variations = 10
+num_steps_train = 40
+num_variations = 1024
 validation_split = 0.1
 
 fs = 48000
 dur = num_steps_train / fs
+gamma = 1.0
+kappa = 1.0
 print(f"Simulation duration: {dur}")
+t60=({"f": 100, "T60": 5}, {"f": 2000, "T60": 3})
+aspect_ratio = 0.95
+Nx = 40
 
 
 if len(sys.argv) == 1:
@@ -25,8 +30,13 @@ else:
 print("\r", f"Starting training for {epochs} epochs", end="")
 
 width = 8
-device = "cuda"
-batch_size = 10
+
+# Set torch device
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
+batch_size = 400
 
 num_example_timesteps = 100
 
@@ -36,12 +46,12 @@ np.random.seed(0)
 # The solver is used to generate the training data
 solver = LinearPlateSolver(
     SR=fs,
-    TF=0.001,
-    gamma=1.0,
-    kappa=1.0,
-    t60=0.5,
-    aspect_ratio=0.8,
-    Nx=40,
+    TF=dur,
+    gamma=gamma,
+    kappa=kappa,
+    t60=t60,
+    aspect_ratio=aspect_ratio,
+    Nx=Nx,
 )
 # Last dimension is for the 3 channels (sound pressure, velocity in x, velocity in y)
 training_input = torch.zeros((num_variations, 1, solver.Nx, solver.Ny, 2))
@@ -59,8 +69,6 @@ print("\n")
 # Generate training data
 for i in range(num_variations):
     ctr = 0.3 * np.random.rand(2) + 0.5
-    # calculate minimum distance to edge of plate
-
     wid = np.random.rand(1) * 0.15
     u0_max = np.random.rand(1)
     v0_max = 0.0
@@ -184,7 +192,7 @@ from datetime import datetime
 import os
 
 now = datetime.now()
-directory = os.path.join("output", "2d_plate_" + now.strftime("%H_%M_%S"))
+directory = os.path.join("output", "2d_plate_" + now.strftime("%Y_%m_%d-%H_%M_%S"))
 print("\n")
 print(directory)
 os.makedirs(directory)
@@ -201,73 +209,111 @@ path = directory + "/norms.pt"
 torch.save(normalization_multiplier, path)
 
 
-# del input
-# del output
-# del dataloader
-# del optimizer
-# del params
-# torch.cuda.empty_cache()
-# #######################################################################################################################
-# validation_input = validation_input.to(device)
-# validation_output = validation_output.to(device)
+del input
+del output
+del dataloader
+del optimizer
+del params
+torch.cuda.empty_cache()
+#######################################################################################################################
+validation_input = validation_input.to(device)
+validation_output = validation_output.to(device)
 
-# val_gru_out = model_gru(validation_input[:, 0, ...], validation_output.shape[1])
-# val_gru_mse = (
-#     torch.nn.functional.mse_loss(val_gru_out, validation_output).detach().cpu().numpy()
-# )
-# del val_gru_out
-# val_rnn_out = model_rnn(validation_input[:, 0, ...], validation_output.shape[1])
-# val_rnn_mse = (
-#     torch.nn.functional.mse_loss(val_rnn_out, validation_output).detach().cpu().numpy()
-# )
-# del val_rnn_out
-# val_ref_out = model_ref(validation_input[:, 0, ...], validation_output.shape[1])
-# val_ref_mse = (
-#     torch.nn.functional.mse_loss(val_ref_out, validation_output).detach().cpu().numpy()
-# )
-# del val_ref_out
+val_gru_out = model_gru(validation_input[:, 0, ...], validation_output.shape[1])
+val_gru_mse = (
+    torch.nn.functional.mse_loss(val_gru_out, validation_output).detach().cpu().numpy()
+)
+del val_gru_out
+val_rnn_out = model_rnn(validation_input[:, 0, ...], validation_output.shape[1])
+val_rnn_mse = (
+    torch.nn.functional.mse_loss(val_rnn_out, validation_output).detach().cpu().numpy()
+)
+del val_rnn_out
+val_ref_out = model_ref(validation_input[:, 0, ...], validation_output.shape[1])
+val_ref_mse = (
+    torch.nn.functional.mse_loss(val_ref_out, validation_output).detach().cpu().numpy()
+)
+del val_ref_out
 
-# with open(directory + "/validation.txt", "w") as f:
-#     f.write(
-#         f"GRU validation MSE:{val_gru_mse:.8f} || RNN validation MSE:{val_rnn_mse:.8f} || Ref validation MSE:{val_ref_mse:.8f}"
-#     )
-#     f.close()
+with open(directory + "/validation.txt", "w") as f:
+    f.write(
+        f"GRU validation MSE:{val_gru_mse:.8f} || RNN validation MSE:{val_rnn_mse:.8f} || Ref validation MSE:{val_ref_mse:.8f}"
+    )
+    f.close()
 
-# #######################################################################################################################
-# display_timestep = num_example_timesteps - 1
+#######################################################################################################################
+display_timestep = num_example_timesteps - 1
 
-# dur = (num_example_timesteps + 1) / fs
-# solver = WaveSolver2D(
-#     dur=dur,
-#     Fs=fs,
-#     lx=room_size,
-#     ly=room_aspect_ratio * room_size,
-#     spatial_delta=room_size / num_points,
-#     modes=simulated_modes,
-# )
+dur = (num_example_timesteps + 1) / fs
+solver = LinearPlateSolver(
+    SR=fs,
+    TF=dur,
+    gamma=gamma,
+    kappa=kappa,
+    t60=t60,
+    aspect_ratio=aspect_ratio,
+    Nx=Nx,
+)
 
-# fe_x = solver.create_impulse(0.5, 0.45)
-# _, _, y_x, y_vx, y_vy = solver.solve(fe_x)
-# model_input = (
-#     torch.tensor(np.stack([y_x[:, :, 0], y_vx[:, :, 0], y_vy[:, :, 0]], axis=-1))
-#     .unsqueeze(0)
-#     .to(device)
-# )
-# normalization_multiplier = 1 / torch.tensor(np.stack([y_x, y_vx, y_vy], axis=-1)).std(
-#     dim=(0, 1, 2)
-# )
-# model_input *= normalization_multiplier.to(device)
-# y_x *= normalization_multiplier[0].cpu().numpy()
+# define parameters
 
-# output_sequence_gru = model_gru(model_input, num_example_timesteps)
-# output_sequence_rnn = model_rnn(model_input, num_example_timesteps)
-# output_sequence_ref = model_ref(model_input, num_example_timesteps)
+ctr = (0.8, 0.5)
+wid = 0.1
+u0_max = 1.0
+v0_max = 0
 
-# plot_norm = 1 / np.max(np.abs(y_x[:, :, 10:]))
-# output_sequence_gru *= plot_norm
-# output_sequence_rnn *= plot_norm
-# output_sequence_ref *= plot_norm
-# y_x *= plot_norm
+
+
+w0 = solver.create_pluck(ctr, wid, u0_max, v0_max)
+u, v, _ = solver.solve(w0)
+model_input = (
+    torch.tensor(np.stack([u[:, :, 0], v[:, :, 0],], axis=-1))
+    .unsqueeze(0)
+    .to(device)
+    )
+
+
+normalization_multiplier = 1 / torch.tensor(np.stack([u, v], axis=-1)).std(
+    dim=(0, 1,)
+)
+model_input *= normalization_multiplier.to(device)
+
+
+output_sequence_gru = model_gru(model_input, num_example_timesteps)
+output_sequence_rnn = model_rnn(model_input, num_example_timesteps)
+output_sequence_ref = model_ref(model_input, num_example_timesteps)
+
+plot_norm = 1 / np.max(np.abs(y_x[:, :, 10:]))
+output_sequence_gru *= plot_norm
+output_sequence_rnn *= plot_norm
+output_sequence_ref *= plot_norm
+
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection="3d")
+ax.plot_surface(
+    solver.X.transpose(),
+    solver.Y.transpose(),
+    u[..., -1],
+    cmap="viridis",
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # fig_width = 237 / 72.27  # Latex columnwidth expressed in inches
 # figsize = (fig_width, fig_width * 0.75)
@@ -281,6 +327,19 @@ torch.save(normalization_multiplier, path)
 #         "font.serif": ["Times"],
 #     }
 # )
+
+
+
+
+
+
+
+
+
+
+
+
+
 # gs = fig.add_gridspec(3, 4, hspace=0.0, wspace=0.05)
 # axs = gs.subplots(sharex="row", sharey=True)
 # axs[0, 0].imshow(
@@ -335,7 +394,7 @@ torch.save(normalization_multiplier, path)
 #     interpolation="none",
 # )
 # axs[1, 3].imshow(
-#     y_x[..., display_timestep // 2 + 1].transpose(),
+#     u[..., display_timestep // 2 + 1].transpose(),
 #     cmap="viridis",
 #     aspect="equal",
 #     interpolation="none",
@@ -397,4 +456,4 @@ torch.save(normalization_multiplier, path)
 #         axs[i, j].set_xticks([])
 #         axs[i, j].set_yticks([])
 
-# plt.savefig(directory + "/2d_wave_outputs.pdf", bbox_inches="tight")
+plt.savefig(directory + "/2d_wave_outputs.pdf", bbox_inches="tight")

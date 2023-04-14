@@ -18,7 +18,7 @@ dur = num_steps_train / fs
 gamma = 1.0
 kappa = 1.0
 print(f"Simulation duration: {dur}")
-t60=({"f": 100, "T60": 5}, {"f": 2000, "T60": 3})
+t60 = ({"f": 100, "T60": 5}, {"f": 2000, "T60": 3})
 aspect_ratio = 0.95
 Nx = 40
 
@@ -151,24 +151,26 @@ print(f"Starting training loop...", "\n")
 for ep in range(epochs):
     tic = time.time()
     for input, output in dataloader:
-        print(f"input shape:{input.shape}")
-        print(f"output shape:{output.shape}")
+        # print(f"input shape:{input.shape}")
+        # print(f"output shape:{output.shape}")
 
         input, output = input.to(device), output.to(device)
         optimizer.zero_grad()
         model_input = input[:, 0, ...]
-        print(f"model_input shape:{model_input.shape}")
-        print(f"GRU")
+        # print(f"model_input shape:{model_input.shape}")
+        # print(f"model_input type training:{model_input.dtype}")
+        # print(f"GRU")
         pred_gru = model_gru(model_input, num_time_steps=training_output.shape[1])
+        # print(f"pred_gru shape:{pred_gru.shape}")
         loss_gru = torch.log10(torch.nn.functional.mse_loss(pred_gru, output))
         loss_gru.backward()
         del pred_gru
-        print(f"RNN")
+        # print(f"RNN")
         pred_rnn = model_rnn(model_input, num_time_steps=training_output.shape[1])
         loss_rnn = torch.log10(torch.nn.functional.mse_loss(pred_rnn, output))
         loss_rnn.backward()
         del pred_rnn
-        print(f"Ref")
+        # print(f"Ref")
         pred_ref = model_ref(model_input, num_time_steps=training_output.shape[1])
         loss_ref = torch.log10(torch.nn.functional.mse_loss(pred_ref, output))
         loss_ref.backward()
@@ -244,7 +246,7 @@ with open(directory + "/validation.txt", "w") as f:
 #######################################################################################################################
 display_timestep = num_example_timesteps - 1
 
-dur = (num_example_timesteps + 1) / fs
+dur = (num_example_timesteps + 2) / fs
 solver = LinearPlateSolver(
     SR=fs,
     TF=dur,
@@ -263,197 +265,195 @@ u0_max = 1.0
 v0_max = 0
 
 
-
 w0 = solver.create_pluck(ctr, wid, u0_max, v0_max)
 u, v, _ = solver.solve(w0)
 model_input = (
-    torch.tensor(np.stack([u[:, :, 0], v[:, :, 0],], axis=-1))
+    torch.tensor(
+        np.stack(
+            [
+                u[:, :, 0],
+                v[:, :, 0],
+            ],
+            axis=-1,
+        )
+    )
     .unsqueeze(0)
     .to(device)
-    )
+)
 
 
 normalization_multiplier = 1 / torch.tensor(np.stack([u, v], axis=-1)).std(
-    dim=(0, 1,)
+    dim=(
+        0,
+        1,
+        2,
+    )
 )
+
+# Print the shape of model input and its normalization multiplier
+# print(f"model_input.shape before normalization: {model_input.shape}")
+# print(f"normalization_multiplier.shape: {normalization_multiplier.shape}")
+
 model_input *= normalization_multiplier.to(device)
+# print(f"model_input.shape after normalization: {model_input.shape}")
+
+# Print type of model_input
+# print(f"model_input.dtype test: {model_input.dtype}")
 
 
 output_sequence_gru = model_gru(model_input, num_example_timesteps)
 output_sequence_rnn = model_rnn(model_input, num_example_timesteps)
 output_sequence_ref = model_ref(model_input, num_example_timesteps)
 
-plot_norm = 1 / np.max(np.abs(y_x[:, :, 10:]))
+plot_norm = 1 / np.max(np.abs(u[:, :, 10:]))
 output_sequence_gru *= plot_norm
 output_sequence_rnn *= plot_norm
 output_sequence_ref *= plot_norm
 
+# Pirnt the shape of output_sequence_gru
+# print(f"output_sequence_gru.shape: {output_sequence_gru.shape}")
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection="3d")
-ax.plot_surface(
-    solver.X.transpose(),
-    solver.Y.transpose(),
-    u[..., -1],
-    cmap="viridis",
+# Print the shape of the solver output, u
+# print(f"u.shape: {u.shape}")
+
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection="3d")
+# ax.plot_surface(
+#     solver.X.transpose(),
+#     solver.Y.transpose(),
+#     u[..., -1],
+#     cmap="viridis",
+# )
+
+
+fig_width = 237 / 72.27  # Latex columnwidth expressed in inches
+figsize = (fig_width, fig_width * 0.75)
+fig = plt.figure(figsize=figsize)
+plt.rcParams.update(
+    {
+        "axes.titlesize": "small",
+        "text.usetex": False,
+        # "font.family": "serif",
+        "font.size": 9,
+        # "font.serif": ["Times"],
+    }
 )
 
 
+gs = fig.add_gridspec(3, 4, hspace=0.0, wspace=0.05)
+axs = gs.subplots(sharex="row", sharey=True)
+axs[0, 0].imshow(
+    output_sequence_gru[0, 0, :, :, 0].detach().cpu().numpy().transpose(),
+    cmap="viridis",
+    aspect="equal",
+    interpolation="none",
+)
+axs[0, 1].imshow(
+    output_sequence_rnn[0, 0, :, :, 0].detach().cpu().numpy().transpose(),
+    cmap="viridis",
+    aspect="equal",
+    interpolation="none",
+)
+axs[0, 2].imshow(
+    output_sequence_ref[0, 0, :, :, 0].detach().cpu().numpy().transpose(),
+    cmap="viridis",
+    aspect="equal",
+    interpolation="none",
+)
+axs[0, 3].imshow(
+    u[..., 1].transpose(), cmap="viridis", aspect="equal", interpolation="none"
+)
+axs[1, 0].imshow(
+    output_sequence_gru[0, display_timestep // 2, :, :, 0]
+    .detach()
+    .cpu()
+    .numpy()
+    .transpose(),
+    cmap="viridis",
+    aspect="equal",
+    interpolation="none",
+)
+axs[1, 1].imshow(
+    output_sequence_rnn[0, display_timestep // 2, :, :, 0]
+    .detach()
+    .cpu()
+    .numpy()
+    .transpose(),
+    cmap="viridis",
+    aspect="equal",
+    interpolation="none",
+)
+axs[1, 2].imshow(
+    output_sequence_ref[0, display_timestep // 2, :, :, 0]
+    .detach()
+    .cpu()
+    .numpy()
+    .transpose(),
+    cmap="viridis",
+    aspect="equal",
+    interpolation="none",
+)
+axs[1, 3].imshow(
+    u[..., display_timestep // 2 + 1].transpose(),
+    cmap="viridis",
+    aspect="equal",
+    interpolation="none",
+)
+axs[2, 0].imshow(
+    output_sequence_gru[0, display_timestep, :, :, 0]
+    .detach()
+    .cpu()
+    .numpy()
+    .transpose(),
+    cmap="viridis",
+    aspect="equal",
+    interpolation="none",
+)
+axs[2, 1].imshow(
+    output_sequence_rnn[0, display_timestep, :, :, 0]
+    .detach()
+    .cpu()
+    .numpy()
+    .transpose(),
+    cmap="viridis",
+    aspect="equal",
+    interpolation="none",
+)
+axs[2, 2].imshow(
+    output_sequence_ref[0, display_timestep, :, :, 0]
+    .detach()
+    .cpu()
+    .numpy()
+    .transpose(),
+    cmap="viridis",
+    aspect="equal",
+    interpolation="none",
+)
+axs[2, 3].imshow(
+    u[..., display_timestep + 1].transpose(),
+    cmap="viridis",
+    aspect="equal",
+    interpolation="none",
+)
 
+axs[0, 0].set(title="FGRU")
+axs[0, 1].set(title="FRNN")
+axs[0, 2].set(title="Ref.")
+axs[0, 3].set(title="Truth")
 
+axs[0, 0].set(ylabel="0 ms")
+axs[1, 0].set(ylabel=f"{((display_timestep // 2)/fs)*1000:.1f} ms")
+axs[2, 0].set(ylabel=f"{(display_timestep/fs)*1000:.1f} ms")
 
+axs[2, 3].set(xlabel="x (/m)")
+axs[2, 3].yaxis.set_label_position("right")
+axs[2, 3].set(ylabel="y (/m)")
 
+for i in range(len(axs)):
+    for j in range(len(axs[0])):
+        axs[i, j].get_images()[0].set_clim(-1, 1)
+        axs[i, j].label_outer()
+        axs[i, j].set_xticks([])
+        axs[i, j].set_yticks([])
 
-
-
-
-
-
-
-
-
-
-
-
-# fig_width = 237 / 72.27  # Latex columnwidth expressed in inches
-# figsize = (fig_width, fig_width * 0.75)
-# fig = plt.figure(figsize=figsize)
-# plt.rcParams.update(
-#     {
-#         "axes.titlesize": "small",
-#         "text.usetex": True,
-#         "font.family": "serif",
-#         "font.size": 9,
-#         "font.serif": ["Times"],
-#     }
-# )
-
-
-
-
-
-
-
-
-
-
-
-
-
-# gs = fig.add_gridspec(3, 4, hspace=0.0, wspace=0.05)
-# axs = gs.subplots(sharex="row", sharey=True)
-# axs[0, 0].imshow(
-#     output_sequence_gru[0, 0, :, :, 0].detach().cpu().numpy().transpose(),
-#     cmap="viridis",
-#     aspect="equal",
-#     interpolation="none",
-# )
-# axs[0, 1].imshow(
-#     output_sequence_rnn[0, 0, :, :, 0].detach().cpu().numpy().transpose(),
-#     cmap="viridis",
-#     aspect="equal",
-#     interpolation="none",
-# )
-# axs[0, 2].imshow(
-#     output_sequence_ref[0, 0, :, :, 0].detach().cpu().numpy().transpose(),
-#     cmap="viridis",
-#     aspect="equal",
-#     interpolation="none",
-# )
-# axs[0, 3].imshow(
-#     y_x[..., 1].transpose(), cmap="viridis", aspect="equal", interpolation="none"
-# )
-# axs[1, 0].imshow(
-#     output_sequence_gru[0, display_timestep // 2, :, :, 0]
-#     .detach()
-#     .cpu()
-#     .numpy()
-#     .transpose(),
-#     cmap="viridis",
-#     aspect="equal",
-#     interpolation="none",
-# )
-# axs[1, 1].imshow(
-#     output_sequence_rnn[0, display_timestep // 2, :, :, 0]
-#     .detach()
-#     .cpu()
-#     .numpy()
-#     .transpose(),
-#     cmap="viridis",
-#     aspect="equal",
-#     interpolation="none",
-# )
-# axs[1, 2].imshow(
-#     output_sequence_ref[0, display_timestep // 2, :, :, 0]
-#     .detach()
-#     .cpu()
-#     .numpy()
-#     .transpose(),
-#     cmap="viridis",
-#     aspect="equal",
-#     interpolation="none",
-# )
-# axs[1, 3].imshow(
-#     u[..., display_timestep // 2 + 1].transpose(),
-#     cmap="viridis",
-#     aspect="equal",
-#     interpolation="none",
-# )
-# axs[2, 0].imshow(
-#     output_sequence_gru[0, display_timestep, :, :, 0]
-#     .detach()
-#     .cpu()
-#     .numpy()
-#     .transpose(),
-#     cmap="viridis",
-#     aspect="equal",
-#     interpolation="none",
-# )
-# axs[2, 1].imshow(
-#     output_sequence_rnn[0, display_timestep, :, :, 0]
-#     .detach()
-#     .cpu()
-#     .numpy()
-#     .transpose(),
-#     cmap="viridis",
-#     aspect="equal",
-#     interpolation="none",
-# )
-# axs[2, 2].imshow(
-#     output_sequence_ref[0, display_timestep, :, :, 0]
-#     .detach()
-#     .cpu()
-#     .numpy()
-#     .transpose(),
-#     cmap="viridis",
-#     aspect="equal",
-#     interpolation="none",
-# )
-# axs[2, 3].imshow(
-#     y_x[..., display_timestep + 1].transpose(),
-#     cmap="viridis",
-#     aspect="equal",
-#     interpolation="none",
-# )
-
-# axs[0, 0].set(title="FGRU")
-# axs[0, 1].set(title="FRNN")
-# axs[0, 2].set(title="Ref.")
-# axs[0, 3].set(title="Truth")
-
-# axs[0, 0].set(ylabel="0 ms")
-# axs[1, 0].set(ylabel=f"{((display_timestep // 2)/fs)*1000:.1f} ms")
-# axs[2, 0].set(ylabel=f"{(display_timestep/fs)*1000:.1f} ms")
-
-# axs[2, 3].set(xlabel="x (/m)")
-# axs[2, 3].yaxis.set_label_position("right")
-# axs[2, 3].set(ylabel="y (/m)")
-
-# for i in range(len(axs)):
-#     for j in range(len(axs[0])):
-#         axs[i, j].get_images()[0].set_clim(-1, 1)
-#         axs[i, j].label_outer()
-#         axs[i, j].set_xticks([])
-#         axs[i, j].set_yticks([])
-
-plt.savefig(directory + "/2d_wave_outputs.pdf", bbox_inches="tight")
+plt.savefig(directory + "/2d_plate_outputs.pdf", bbox_inches="tight")

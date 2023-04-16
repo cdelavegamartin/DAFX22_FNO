@@ -37,6 +37,9 @@ class LinearPlateSolver:
         elif isinstance(t60, (int, float)):
             self.sig0 = 6 * np.log(10) / (t60)
             self.sig1 = 0
+        elif t60 == None:
+            self.sig0 = 0
+            self.sig1 = 0
         else:
             raise ValueError("t60 must be a tuple of dicts or a number")
 
@@ -251,6 +254,9 @@ if __name__ == "__main__":
     u0_max = 1
     v0_max = 0
 
+    # t60=({"f": 300, "T60": 1000}, {"f": 5000, "T60": 600})
+    t60 = None
+
     # time the solver
     start = time.time()
 
@@ -260,7 +266,7 @@ if __name__ == "__main__":
         TF=0.002,
         gamma=340.0,
         kappa=0.0,
-        t60=({"f": 300, "T60": 1000}, {"f": 5000, "T60": 600}),
+        t60=t60,
         aspect_ratio=0.95,
         Nx=40,
     )

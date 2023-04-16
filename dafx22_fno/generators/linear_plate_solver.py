@@ -146,10 +146,14 @@ class LinearPlateSolver:
     def _eta_func(self, frequency):
         """Calculate the eta function for a given frequency."""
         omega = 2 * np.pi * frequency
-        eta = (
-            -self.gamma**2
-            + np.sqrt(self.gamma**4 + 4 * self.kappa**2 * omega**2)
-        ) / (2 * self.kappa**2)
+        # calculate eta, depending if kappa is zero or not
+        if self.kappa == 0:
+            eta = omega**2 / self.gamma**2
+        else:
+            eta = (
+                -self.gamma**2
+                + np.sqrt(self.gamma**4 + 4 * self.kappa**2 * omega**2)
+            ) / (2 * self.kappa**2)
         return eta
 
     def create_pluck(self, ctr, wid, u0_max, v0_max):
@@ -242,7 +246,7 @@ if __name__ == "__main__":
 
     # define parameters
 
-    ctr = (0.8, 0.5)
+    ctr = (0.45, 0.5)
     wid = 0.1
     u0_max = 1
     v0_max = 0
@@ -253,13 +257,16 @@ if __name__ == "__main__":
     # create solver
     solver = LinearPlateSolver(
         SR=48000,
-        TF=0.001,
-        gamma=1.0,
-        kappa=1.0,
-        t60=0.5,
-        aspect_ratio=1.5,
-        Nx=100,
+        TF=0.002,
+        gamma=340.0,
+        kappa=0.0,
+        t60=({"f": 300, "T60": 1000}, {"f": 5000, "T60": 600}),
+        aspect_ratio=0.95,
+        Nx=40,
     )
+    # print sig0 and sig1
+    print(solver.sig0, solver.sig1)
+
     # create initial conditions
     wb0 = solver.create_pluck(ctr, wid, u0_max, v0_max)
     # solve
@@ -287,7 +294,7 @@ if __name__ == "__main__":
 
     print(u.shape)
     ax.imshow(
-        u[..., 0],
+        u[..., 0].transpose(),
         cmap="viridis",
     )
     plt.show()
@@ -296,7 +303,7 @@ if __name__ == "__main__":
     ax = fig.add_subplot(111)
 
     ax.imshow(
-        u[..., -1],
+        u[..., -1].transpose(),
         cmap="viridis",
     )
     plt.show()

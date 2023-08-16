@@ -15,10 +15,10 @@ validation_split = 0.1
 
 fs = 48000
 dur = num_steps_train / fs
-gamma = 1.0
-kappa = 1.0
+gamma = 100.0
+kappa = 0.0
 print(f"Simulation duration: {dur}")
-t60 = ({"f": 100, "T60": 5}, {"f": 2000, "T60": 3})
+t60 = None
 aspect_ratio = 0.95
 Nx = 40
 

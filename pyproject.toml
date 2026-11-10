@@ -1,0 +1,22 @@
+[project]
+name = "dafx22-fno"
+version = "0.1.0"
+description = "Fourier neural operators for physical modelling (DAFX22)"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "torch>=2.2",
+    "numpy",
+    "scipy",
+    "matplotlib",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

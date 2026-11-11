@@ -79,6 +79,20 @@ def generate(num, dur, rng_seed):
     return inputs, outputs
 
 
+def load_or_generate(args):
+    """Normalised (x_train, y_train, x_val, y_val); cached so parallel runs share data."""
+    cache = args.data_cache
+    if cache is not None and cache.exists():
+        return torch.load(cache)
+    x_train, y_train = generate(args.variations, DUR, args.seed)
+    x_val, y_val = generate(args.validation, 2 * DUR, args.seed + 1)
+    norm = 1 / torch.std(y_train, dim=(0, 1, 2, 3))
+    data = tuple(t * norm for t in (x_train, y_train, x_val, y_val))
+    if cache is not None:
+        torch.save(data, cache)
+    return data
+
+
 def build_models(nx, ny, seed):
     def seeded(factory):
         torch.manual_seed(seed)
@@ -153,14 +167,11 @@ def plot_results(histories, rollouts, train_steps, path):
         )
     axes[0].set(xlabel="epoch", ylabel="training MSE", yscale="log", title="Training")
     axes[1].axvline(train_steps, color="#52514e", lw=0.8, ls=":")
-    axes[1].text(
-        train_steps, axes[1].get_ylim()[0], " training length", fontsize=7, va="bottom"
-    )
     axes[1].set(
         xlabel="time step",
         ylabel="validation MSE",
         yscale="log",
-        title="Validation rollout (2x training duration)",
+        title="Validation rollout (66 steps)",
     )
     axes[1].legend(frameon=False, fontsize=7)
     for ax in axes:
@@ -203,6 +214,14 @@ def main():
     parser.add_argument("--tag", default="")
     parser.add_argument("--threads", type=int, default=None)
     parser.add_argument(
+        "--train-steps",
+        type=int,
+        default=None,
+        help="truncate training rollouts to this many steps (default: all 33)",
+    )
+    parser.add_argument("--data-cache", type=Path, default=None)
+    parser.add_argument("--generate-only", action="store_true")
+    parser.add_argument(
         "--merge",
         nargs="+",
         metavar="TAG",
@@ -214,12 +233,13 @@ def main():
         return
     if args.threads:
         torch.set_num_threads(args.threads)
+    if args.generate_only:
+        load_or_generate(args)
+        return
 
     tic = time.time()
-    x_train, y_train = generate(args.variations, DUR, args.seed)
-    x_val, y_val = generate(args.validation, 2 * DUR, args.seed + 1)
-    norm = 1 / torch.std(y_train, dim=(0, 1, 2, 3))
-    x_train, y_train, x_val, y_val = (t * norm for t in (x_train, y_train, x_val, y_val))
+    x_train, y_train, x_val, y_val = load_or_generate(args)
+    y_train = y_train[:, : args.train_steps]
     train_steps = y_train.shape[1]
     print(
         f"data: train {tuple(y_train.shape)}, validation {tuple(y_val.shape)} "
@@ -242,6 +262,7 @@ def main():
             "parameters": n_params,
             "final_train_mse": float(histories[name][-1]),
             "val_mse_training_length": float(per_step[:train_steps].mean()),
+            "val_mse_33_steps": float(per_step[:33].mean()),
             "val_mse_2x_length": float(per_step.mean()),
             "train_time_s": time.time() - tic,
         }

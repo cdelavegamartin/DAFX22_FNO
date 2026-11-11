@@ -166,7 +166,7 @@ def evaluate(model, x, y):
 
 
 def plot_results(histories, rollouts, train_steps, path):
-    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.8), layout="constrained")
+    fig, axes = plt.subplots(1, 2, figsize=(8.4, 2.8), layout="constrained")
     for name, hist in histories.items():
         color, ls = MODEL_STYLE[name]
         axes[0].plot(np.arange(1, len(hist) + 1), hist, ls, color=color, lw=2, label=name)
@@ -186,7 +186,12 @@ def plot_results(histories, rollouts, train_steps, path):
         yscale="log",
         title="Validation rollout (66 steps)",
     )
-    axes[1].legend(frameon=False, fontsize=7)
+    fig.legend(
+        *axes[0].get_legend_handles_labels(),
+        loc="outside right center",
+        frameon=False,
+        fontsize=7,
+    )
     for ax in axes:
         ax.spines[["top", "right"]].set_visible(False)
     fig.savefig(path, dpi=150, bbox_inches="tight")

@@ -5,3 +5,17 @@ This is the accompanying repository to the paper submission for DAFx20in22, Vien
 
 ## Abstract
 Discrete-time modeling of acoustic, mechanical and electrical systems is a prominent topic in the musical signal processing literature. Such models are mostly derived by discretizing a mathematical model, given in terms of ordinary or partial differential equations, using established techniques. Recent work has applied the techniques of machine-learning to construct such models automatically from data for the case of systems which have lumped states described by scalar values, such as electrical circuits. In this work, we examine how similar techniques are able to construct models of systems which have spatially distributed rather than lumped states. We describe several novel recurrent neural network structures, and show how they can be thought of as an extension of modal techniques. As a proof of concept, we generate synthetic data for three physical systems and show that the proposed network structures can be trained with this data to reproduce the behavior of these systems. 
+
+## Environment
+
+The project uses [uv](https://docs.astral.sh/uv/) with CPU-only PyTorch:
+
+```bash
+uv sync
+uv run python train_2d_wave.py
+```
+
+## Spectral truncation analysis
+
+`analysis/spectral_truncation/` compares the spectral layers of FGRU/FRNN (`FourierConv2d`) and REF (`SpectralConv2d`).
+`FourierConv2d` drops the negative-kx half of the 2D spectrum; see `analysis/spectral_truncation/report.md`.

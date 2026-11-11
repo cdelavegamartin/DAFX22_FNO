@@ -50,6 +50,10 @@ MODEL_STYLE = {
 }
 
 
+# Arguments that define the experiment (paths and execution options are left out).
+CONFIG_KEYS = ("variations", "validation", "epochs", "batch_size", "seed", "models")
+
+
 def make_solver(dur):
     return WaveSolver2D(
         dur=dur,
@@ -220,6 +224,9 @@ def main():
         help="truncate training rollouts to this many steps (default: all 33)",
     )
     parser.add_argument("--data-cache", type=Path, default=None)
+    parser.add_argument(
+        "--save-dir", type=Path, default=None, help="save trained state_dicts here"
+    )
     parser.add_argument("--generate-only", action="store_true")
     parser.add_argument(
         "--merge",
@@ -267,9 +274,13 @@ def main():
             "train_time_s": time.time() - tic,
         }
         print(f"  {results[name]}")
+        if args.save_dir is not None:
+            args.save_dir.mkdir(parents=True, exist_ok=True)
+            torch.save(model.state_dict(), args.save_dir / f"{name.replace(' ', '_')}.pt")
 
     suffix = f"_{args.tag}" if args.tag else ""
-    out = {"config": vars(args) | {"train_steps": train_steps}, "results": results}
+    config = {k: vars(args)[k] for k in CONFIG_KEYS} | {"train_steps": train_steps}
+    out = {"config": config, "results": results}
     out["histories"] = {k: v.tolist() for k, v in histories.items()}
     out["rollouts"] = {k: v.tolist() for k, v in rollouts.items()}
     (HERE / f"retrain_results{suffix}.json").write_text(json.dumps(out, indent=2) + "\n")

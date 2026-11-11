@@ -40,6 +40,9 @@ ROOM_SIZE = 1.0
 ASPECT = 0.95
 DUR = 0.0007
 WIDTH = 8
+# Capacity control: the full-spectrum layer doubles the spectral weights, which scale
+# with width**2, so width 11 (11**2 / 8**2 = 1.89) roughly matches its parameter count.
+WIDTH_MATCHED = 11
 
 MODEL_STYLE = {
     "FGRU": ("#eb6834", "-"),
@@ -47,6 +50,8 @@ MODEL_STYLE = {
     "FRNN": ("#1baf7a", "-"),
     "FRNN full spectrum": ("#1baf7a", "--"),
     "REF": ("#2a78d6", "-"),
+    "FGRU width 11": ("#eb6834", ":"),
+    "FRNN width 11": ("#1baf7a", ":"),
 }
 
 
@@ -111,6 +116,10 @@ def build_models(nx, ny, seed):
         "FRNN": rnn,
         "FRNN full spectrum": use_full_spectrum(copy.deepcopy(rnn)),
         "REF": seeded(lambda: FNO_Markov_2d(3, 3, nx, ny, WIDTH, depth=3)),
+        "FGRU width 11": seeded(lambda: FNO_GRU_2d(3, 3, nx, ny, width=WIDTH_MATCHED)),
+        "FRNN width 11": seeded(
+            lambda: FNO_RNN_2d(3, 3, nx, ny, width=WIDTH_MATCHED, depth=3)
+        ),
     }
     return models
 

@@ -5,7 +5,7 @@ description = "Fourier neural operators for physical modelling (DAFX22)"
 requires-python = ">=3.10,<3.13"
 dependencies = [
     "torch>=2.2",
-    "numpy",
+    "numpy<2",  # dafx22_fno.generators import numpy.trapz, removed in NumPy 2
     "scipy",
     "matplotlib",
 ]

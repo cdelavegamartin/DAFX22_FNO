@@ -8,12 +8,15 @@ Discrete-time modeling of acoustic, mechanical and electrical systems is a promi
 
 ## Environment
 
-The project uses [uv](https://docs.astral.sh/uv/) with CPU-only PyTorch:
+The project uses [uv](https://docs.astral.sh/uv/); an extra selects the PyTorch backend:
 
 ```bash
-uv sync
+uv sync --extra cpu     # CPU-only PyTorch
+uv sync --extra cu126   # CUDA 12.6 PyTorch (NVIDIA driver R525 or newer)
 uv run python train_2d_wave.py
 ```
+
+`uv run` keeps the backend installed by the last `uv sync`.
 
 ## Spectral truncation analysis
 

@@ -214,7 +214,7 @@ These numbers come from one seed, a small dataset and 300 epochs; they show the 
 ## Reproduce
 
 ```bash
-uv sync
+uv sync --extra cpu
 uv run python analysis/spectral_truncation/compare_spectral_layers.py --runs-dir <path-to>/output
 # Retraining: generate the data once, train each model in its own process, then merge.
 # Each model takes 35-65 min with 3-7 threads on a 16-core CPU.

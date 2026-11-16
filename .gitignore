@@ -27,3 +27,9 @@ output/
 # HPC job files
 hpc/**/*.job
 *.job.*
+# Python environment
+.venv/
+
+# Agent files
+.agents-plan/
+.claude/worktrees/

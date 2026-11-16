@@ -1,0 +1,159 @@
+{
+  "equivalence": {
+    "2d_max_abs_diff_weights2_zero": 8.940696716308594e-08,
+    "2d_output_rms": 0.09953314810991287,
+    "2d_max_abs_diff_weights2_equal_weights1": 0.3630959391593933,
+    "1d_max_abs_diff": 8.940696716308594e-08,
+    "1d_output_rms": 0.1539883315563202
+  },
+  "passband_2d": {
+    "FourierConv2d (FGRU/FRNN)": {
+      "mean_ratio_p>0_q>0": 0.8681908173970568,
+      "mean_ratio_p<0_q>0": 0.02667287592412362,
+      "mean_ratio_q=0_p!=0": 0.298856123874062,
+      "mean_ratio_p=0_q>0": 0.5983366916054175
+    },
+    "SpectralConv2d (REF, pad 9, 20 modes)": {
+      "mean_ratio_p>0_q>0": 0.6051001767740892,
+      "mean_ratio_p<0_q>0": 0.6366945824741161,
+      "mean_ratio_q=0_p!=0": 0.7728170809620305,
+      "mean_ratio_p=0_q>0": 0.7918595945405827
+    },
+    "FourierConv2d + negative-kx block (fix)": {
+      "mean_ratio_p>0_q>0": 0.9605263277302158,
+      "mean_ratio_p<0_q>0": 0.9605263294209403,
+      "mean_ratio_q=0_p!=0": 1.0000000481856497,
+      "mean_ratio_p=0_q>0": 0.9605263252997993
+    }
+  },
+  "issue_examples": {
+    "cos(20x + 20y)": {
+      "FourierConv2d (FGRU/FRNN)": 0.9512372604847512,
+      "SpectralConv2d (REF, pad 9, 20 modes)": 0.9937718951168064,
+      "FourierConv2d + negative-kx block (fix)": 0.9999418819382951
+    },
+    "cos(20x - 20y)": {
+      "FourierConv2d (FGRU/FRNN)": 0.01889486053559032,
+      "SpectralConv2d (REF, pad 9, 20 modes)": 0.9928627754810437,
+      "FourierConv2d + negative-kx block (fix)": 0.9999428713929142
+    },
+    "sin(2 pi x) sin(3 pi y / 0.95)": {
+      "FourierConv2d (FGRU/FRNN)": 0.4609435875224335,
+      "SpectralConv2d (REF, pad 9, 20 modes)": 0.9998653250492447,
+      "FourierConv2d + negative-kx block (fix)": 1.0000000845948183
+    }
+  },
+  "clamped_modes_1to15": {
+    "FourierConv2d (FGRU/FRNN)": {
+      "median": 0.49404050704099534,
+      "min": 0.3692704357377209,
+      "max": 0.6255743035500125
+    },
+    "SpectralConv2d (REF, pad 9, 20 modes)": {
+      "median": 0.9979107617721091,
+      "min": 0.992796751829955,
+      "max": 0.9999808815726784
+    },
+    "FourierConv2d + negative-kx block (fix)": {
+      "median": 1.0,
+      "min": 0.9995125646981116,
+      "max": 1.000000253784455
+    }
+  },
+  "orientation_random_init": {
+    "FourierConv2d": {
+      "n": 100,
+      "median": 0.020695546771522494,
+      "min": 0.01953095137183805,
+      "max": 0.022295199893827004
+    },
+    "SpectralConv2d": {
+      "n": 100,
+      "median": 1.0036112087293305,
+      "min": 0.951115836802145,
+      "max": 1.0480887290200056
+    }
+  },
+  "orientation_trained": {
+    "FourierConv2d": {
+      "n": 258,
+      "median": 0.020940162052595322,
+      "min": 0.01937261164243138,
+      "max": 0.03619632914609967
+    },
+    "SpectralConv2d": {
+      "n": 111,
+      "median": 1.0056305323640988,
+      "min": 0.9604135316379412,
+      "max": 1.0522597290018239
+    }
+  },
+  "trained_runs": [
+    "2d_wave_02_24_17",
+    "2d_wave_09_27_45",
+    "2d_wave_15_25_31",
+    "2d_wave_15_28_20",
+    "2d_wave_15_33_30",
+    "2d_wave_16_31_23",
+    "2d_wave_16_48_51",
+    "2d_wave_17_09_55",
+    "2d_wave_17_13_18",
+    "2d_wave_17_14_09",
+    "2d_wave_17_21_27",
+    "2d_wave_17_27_17",
+    "2d_wave_17_38_15",
+    "2d_wave_17_38_27",
+    "2d_wave_17_38_45",
+    "2d_wave_17_43_54",
+    "2d_wave_17_44_02",
+    "2d_wave_17_45_02",
+    "2d_wave_17_45_11",
+    "2d_wave_17_45_56",
+    "2d_wave_17_46_41",
+    "2d_wave_18_24_19",
+    "2d_wave_18_56_23",
+    "2d_wave_18_57_26",
+    "2d_wave_19_07_48",
+    "2d_wave_20_50_25",
+    "2d_wave_20_59_28",
+    "2d_wave_21_01_04",
+    "2d_wave_22_12_49",
+    "2d_wave_22_13_49",
+    "2d_wave_22_18_47",
+    "2d_wave_23_06_51",
+    "2d_wave_23_11_12",
+    "2d_wave_23_12_54",
+    "2d_wave_23_13_38",
+    "2d_wave_23_14_11",
+    "2d_wave_23_14_43",
+    "2d_wave_23_16_26",
+    "2d_wave_23_22_34",
+    "2d_wave_23_24_10",
+    "2d_wave_23_27_13",
+    "2d_wave_23_30_42",
+    "2d_wave_23_30_54"
+  ],
+  "trained_ref_skipped": [
+    "2d_wave_17_27_17 (ref, 21x17 grid)",
+    "2d_wave_17_38_15 (ref, 21x17 grid)",
+    "2d_wave_17_38_27 (ref, 21x17 grid)",
+    "2d_wave_17_38_45 (ref, 21x17 grid)",
+    "2d_wave_17_43_54 (ref, 21x17 grid)",
+    "2d_wave_17_44_02 (ref, 21x17 grid)"
+  ],
+  "passband_1d": {
+    "FourierConv1d (FGRU/FRNN)": {
+      "min_ratio_k<N/2": 0.9999999237060547,
+      "max_ratio_k<N/2": 1.0000002288818535
+    },
+    "SpectralConv1d (REF, pad 2, 20 modes)": {
+      "min_ratio_k<N/2": 0.001566268801689148,
+      "max_ratio_k<N/2": 0.991493911743164
+    },
+    "SpectralConv1d on FourierConv1d grid (N modes, pad N)": {
+      "min_ratio_k<N/2": 0.9999999237060547,
+      "max_ratio_k<N/2": 1.0000002288818535
+    },
+    "fourier_ratio_at_nyquist": 0.24999996185302734
+  }
+}

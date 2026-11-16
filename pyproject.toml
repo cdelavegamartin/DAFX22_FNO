@@ -4,19 +4,32 @@ version = "0.1.0"
 description = "Fourier neural operators for physical modelling (DAFX22)"
 requires-python = ">=3.10,<3.13"
 dependencies = [
-    "torch>=2.2",
     "numpy<2",  # dafx22_fno.generators import numpy.trapz, removed in NumPy 2
     "scipy",
     "matplotlib",
 ]
 
+# PyTorch backend, selected at sync time: uv sync --extra cpu | uv sync --extra cu126
+[project.optional-dependencies]
+cpu = ["torch>=2.2"]
+cu126 = ["torch>=2.2"]
+
 [tool.uv]
 package = false
+conflicts = [[{ extra = "cpu" }, { extra = "cu126" }]]
 
 [tool.uv.sources]
-torch = { index = "pytorch-cpu" }
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu126", extra = "cu126" },
+]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
 explicit = true

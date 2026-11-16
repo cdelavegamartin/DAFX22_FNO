@@ -18,13 +18,13 @@ Per epoch, the script logs each model's training MSE, its gradient norm before c
 Each condition needs about 8 GB of memory (autograd over 119 steps at batch 512); on 14 CPU threads an epoch takes about 30 s, so the paper's 5000 epochs need a GPU.
 
 ```bash
+uv sync --extra cu126
 uv run python analysis/gradient_clipping/clip_test_1d.py --generate-only --data-cache string1d.pt
 uv run python analysis/gradient_clipping/clip_test_1d.py --condition joint --data-cache string1d.pt --device cuda
 uv run python analysis/gradient_clipping/clip_test_1d.py --condition separate --data-cache string1d.pt --device cuda
 uv run python analysis/gradient_clipping/clip_test_1d.py --merge joint separate
 ```
 
-The environment of this repository installs CPU-only PyTorch; a GPU run needs a CUDA build of PyTorch.
 The two conditions are independent and MAY run as parallel jobs.
 `--merge` writes `results.json` (validation MSE per model, per-step validation MSE, training logs) and `figures/clipping_1d.png` (training MSE, gradient norms and clipping scale per model and condition).
 

@@ -12,6 +12,7 @@ Both start from the same initial weights and see the same batches.
 AdamW and OneCycleLR act per parameter, so the optimisers are equivalent across conditions.
 
 Usage:
+  uv run python generate_dataset.py string
   uv run python analysis/gradient_clipping/clip_test_1d.py --condition joint --tag joint
   uv run python analysis/gradient_clipping/clip_test_1d.py --condition separate --tag separate
   uv run python analysis/gradient_clipping/clip_test_1d.py --merge joint separate
@@ -33,13 +34,12 @@ import torch  # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
 
-from dafx22_fno.generators.string_solver import StringSolver  # noqa: E402
+from dafx22_fno.datasets import split  # noqa: E402
 from dafx22_fno.modules.fno_gru import FNO_GRU_1d  # noqa: E402
 from dafx22_fno.modules.fno_ref import FNO_Markov_1d  # noqa: E402
 from dafx22_fno.modules.fno_rnn import FNO_RNN_1d  # noqa: E402
 
 # Settings of train_1d_string.py at commit e08b4b0
-DUR, FS, DELTA_X, D1 = 0.0025, 48000, 1e-2, 1e-1
 WIDTH = 16
 LR, MAX_LR, WEIGHT_DECAY, MAX_NORM = 2e-4, 1e-3, 1e-4, 1.0
 NAMES = ("gru", "rnn", "ref")
@@ -48,36 +48,23 @@ COLORS = {"gru": "#eb6834", "rnn": "#1baf7a", "ref": "#2a78d6"}
 STYLES = {"joint": "-", "separate": "--"}
 
 
-def generate(num, seed):
-    """Half plucks at random positions, half random initial conditions (as e08b4b0)."""
-    np.random.seed(seed)
-    solver = StringSolver(dur=DUR, Fs=FS, delta_x=DELTA_X, d1=D1)
-    inputs = torch.zeros((num, 1, solver.numXs, 2))
-    outputs = torch.zeros((num, solver.numT - 1, solver.numXs, 2))
-    for i in range(num):
-        fe_x = (
-            solver.create_pluck(np.random.rand(1))
-            if i < num // 2
-            else solver.create_random_initial()
+def load(path, val_split=0.1):
+    """Normalised (x_train, y_train, x_val, y_val) from a generate_dataset.py array.
+
+    As in e08b4b0, each channel is scaled by the std of the output steps of all
+    trajectories, and the last ceil(val_split * n) trajectories validate.
+    """
+    if not path.exists():
+        raise FileNotFoundError(
+            f"{path} not found; create it with: "
+            "uv run python generate_dataset.py string --output " + str(path)
         )
-        y_x, y_defl_x = solver.solve(fe_x)
-        inputs[i, 0] = torch.tensor(np.stack([y_x[:, 0], y_defl_x[:, 0]], axis=-1))
-        outputs[i] = torch.tensor(
-            np.stack([y_x[:, 1:].T, y_defl_x[:, 1:].T], axis=-1)
-        )
+    data = torch.from_numpy(np.load(path))
+    inputs, outputs = data[:, :1], data[:, 1:]
     norms = 1 / torch.std(outputs, dim=(0, 1, 2))
     inputs, outputs = inputs * norms, outputs * norms
-    num_val = int(np.ceil(0.1 * num))
-    return inputs[:-num_val], outputs[:-num_val], inputs[-num_val:], outputs[-num_val:]
-
-
-def load_or_generate(path, num, seed):
-    if path is not None and path.exists():
-        return torch.load(path)
-    data = generate(num, seed)
-    if path is not None:
-        torch.save(data, path)
-    return data
+    (x_train, x_val), (y_train, y_val) = split(inputs, val_split), split(outputs, val_split)
+    return x_train, y_train, x_val, y_val
 
 
 def build_models(size, seed):
@@ -240,14 +227,17 @@ def merge(tags):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--condition", choices=("joint", "separate"))
-    parser.add_argument("--variations", type=int, default=1024)
     parser.add_argument("--epochs", type=int, default=5000)
     parser.add_argument("--batch-size", type=int, default=512)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--threads", type=int, default=None)
     parser.add_argument("--device", default="cpu")
-    parser.add_argument("--data-cache", type=Path, default=None)
-    parser.add_argument("--generate-only", action="store_true")
+    parser.add_argument(
+        "--data",
+        type=Path,
+        default=Path("output/datasets/string-n_1024-seed_0.npy"),
+        help="string dataset from generate_dataset.py",
+    )
     parser.add_argument("--tag", default=None)
     parser.add_argument("--merge", nargs="+", metavar="TAG")
     args = parser.parse_args()
@@ -257,11 +247,7 @@ def main():
     if args.threads:
         torch.set_num_threads(args.threads)
 
-    x_train, y_train, x_val, y_val = load_or_generate(
-        args.data_cache, args.variations, args.seed
-    )
-    if args.generate_only:
-        return
+    x_train, y_train, x_val, y_val = load(args.data)
     print(f"data: train {tuple(y_train.shape)}, validation {tuple(y_val.shape)}")
     models = {n: m.to(args.device) for n, m in build_models(x_train.shape[2], args.seed).items()}
     log = train(
@@ -275,8 +261,8 @@ def main():
     )
     result = {
         "config": {
-            k: getattr(args, k)
-            for k in ("condition", "variations", "epochs", "batch_size", "seed")
+            k: str(getattr(args, k)) if k == "data" else getattr(args, k)
+            for k in ("condition", "data", "epochs", "batch_size", "seed")
         },
         "validation": validate(models, x_val, y_val, args.device),
         "log": to_lists(log),

@@ -19,13 +19,13 @@ Each condition needs about 8 GB of memory (autograd over 119 steps at batch 512)
 
 ```bash
 uv sync --extra cu126
-uv run python analysis/gradient_clipping/clip_test_1d.py --generate-only --data-cache string1d.pt
-uv run python analysis/gradient_clipping/clip_test_1d.py --condition joint --data-cache string1d.pt --device cuda
-uv run python analysis/gradient_clipping/clip_test_1d.py --condition separate --data-cache string1d.pt --device cuda
+uv run python generate_dataset.py string   # output/datasets/string-n_1024-seed_0.npy
+uv run python analysis/gradient_clipping/clip_test_1d.py --condition joint --device cuda
+uv run python analysis/gradient_clipping/clip_test_1d.py --condition separate --device cuda
 uv run python analysis/gradient_clipping/clip_test_1d.py --merge joint separate
 ```
 
-The two conditions are independent and MAY run as parallel jobs.
+The two conditions are independent and MAY run as parallel jobs; `--data` selects another dataset.
 `--merge` writes `results.json` (validation MSE per model, per-step validation MSE, training logs) and `figures/clipping_1d.png` (training MSE, gradient norms and clipping scale per model and condition).
 
 ## Expected signature

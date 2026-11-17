@@ -18,6 +18,19 @@ uv run python train_2d_wave.py
 
 `uv run` keeps the backend installed by the last `uv sync`.
 
+## Datasets
+
+`generate_dataset.py` simulates the datasets of the paper with the settings of the training scripts at commit `e08b4b0` and saves each as one raw `.npy` array (trajectories, time steps, x, [y,] channels), with a `.json` holding the settings, seed, channel names and training-split statistics:
+
+```bash
+uv run python generate_dataset.py string             # linear lossy string, (1024, 120, 65, 2)
+uv run python generate_dataset.py nonlinear_string   # tension-modulated string, (1024, 120, 65, 2)
+uv run python generate_dataset.py wave2d             # 2D wave equation, (1024, 34, 40, 38, 3)
+```
+
+Files go to `output/datasets/<system>-n_<variations>-seed_<seed>.npy` (`--variations`, `--seed`, `--output` change this).
+The original scripts did not seed numpy, so their exact datasets cannot be regenerated; the solvers and the order of random draws are the same.
+
 ## Spectral truncation analysis
 
 `analysis/spectral_truncation/` compares the spectral layers of FGRU/FRNN (`FourierConv2d`) and REF (`SpectralConv2d`).

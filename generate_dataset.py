@@ -5,7 +5,7 @@ Writes the raw (unnormalised) array (trajectories, time steps, x, [y,] channels)
 mean and std of the training split (all but the last ceil(10%) trajectories).
 
 Usage:
-  uv run python generate_dataset.py {string,nonlinear_string,wave2d} [--variations N] [--seed S] [--output PATH]
+  uv run python generate_dataset.py {string,nonlinear_string,wave2d} [--variations N] [--seed S] [--steps T] [--output PATH]
 """
 
 import argparse
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
-from dafx22_fno.datasets import SYSTEMS, simulate, split
+from dafx22_fno.datasets import SYSTEMS, settings, simulate, split
 
 
 def main():
@@ -24,18 +24,25 @@ def main():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--val-split", type=float, default=0.1)
     parser.add_argument(
+        "--steps",
+        type=int,
+        default=None,
+        help="time steps per trajectory, input included (default: the paper's duration)",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=None,
-        help="default: output/datasets/<system>-n_<variations>-seed_<seed>.npy",
+        help="default: output/datasets/<system>-n_<variations>[-steps_<steps>]-seed_<seed>.npy",
     )
     args = parser.parse_args()
+    steps = f"-steps_{args.steps}" if args.steps is not None else ""
     output = args.output or Path(
-        f"output/datasets/{args.system}-n_{args.variations}-seed_{args.seed}.npy"
+        f"output/datasets/{args.system}-n_{args.variations}{steps}-seed_{args.seed}.npy"
     )
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    data = simulate(args.system, args.variations, args.seed)
+    data = simulate(args.system, args.variations, args.seed, args.steps)
     np.save(output, data)
 
     training, _ = split(data, args.val_split)
@@ -46,7 +53,7 @@ def main():
         "channels": SYSTEMS[args.system]["channels"],
         "seed": args.seed,
         "val_split": args.val_split,
-        "settings": SYSTEMS[args.system],
+        "settings": settings(args.system, args.steps),
         "training_split": {
             "mean": training.mean(axis=axes).tolist(),
             "std": training.std(axis=axes).tolist(),

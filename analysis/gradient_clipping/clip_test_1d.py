@@ -22,6 +22,7 @@ results/<system>/results.json and results/<system>/clipping.png.
 
 import argparse
 import json
+import dataclasses
 import sys
 from pathlib import Path
 
@@ -134,6 +135,12 @@ def main():
     parser.add_argument("--epochs", type=int, default=5000)
     parser.add_argument("--batch-size", type=int, default=512)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--max-norm",
+        type=float,
+        default=HYPERPARAMETERS.max_norm,
+        help="gradient clipping threshold; inf disables clipping",
+    )
     parser.add_argument("--threads", type=int, default=None)
     parser.add_argument("--device", default="cpu")
     parser.add_argument(
@@ -147,12 +154,15 @@ def main():
         "--out-dir",
         type=Path,
         default=None,
-        help="default: analysis/gradient_clipping/results/<system>",
+        help="default: analysis/gradient_clipping/results/<system>/"
+        "max_norm_<max norm>/seed_<seed>",
     )
     parser.add_argument("--merge", action="store_true", help="merge both conditions")
     args = parser.parse_args()
     data_path = args.data or Path(f"output/datasets/{args.system}-n_1024-seed_0.npy")
-    out_dir = args.out_dir or HERE / "results" / args.system
+    out_dir = args.out_dir or (
+        HERE / "results" / args.system / f"max_norm_{args.max_norm:g}" / f"seed_{args.seed}"
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
     if args.merge:
         merge(out_dir)
@@ -170,7 +180,7 @@ def main():
         models,
         (x_train, y_train),
         args.condition,
-        HYPERPARAMETERS,
+        dataclasses.replace(HYPERPARAMETERS, max_norm=args.max_norm),
         args.epochs,
         args.batch_size,
         args.seed,
@@ -185,6 +195,7 @@ def main():
             "epochs": args.epochs,
             "batch_size": args.batch_size,
             "seed": args.seed,
+            "max_norm": args.max_norm,
         },
         "validation": validate(models, x_val, y_val, args.device),
         "log": to_lists(log),

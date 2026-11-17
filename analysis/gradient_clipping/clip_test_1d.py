@@ -15,24 +15,21 @@ Usage (system: string or nonlinear_string):
   uv run python generate_dataset.py string
   uv run python analysis/gradient_clipping/clip_test_1d.py --system string --condition joint
   uv run python analysis/gradient_clipping/clip_test_1d.py --system string --condition separate
-  uv run python analysis/gradient_clipping/clip_test_1d.py --system string --merge
+  uv run python analysis/gradient_clipping/clip_test_1d.py --merge
 Each run writes <condition>.json and <condition>-models.pt (state dicts and
-normalisation multipliers) to results/<system>/max_norm_<m>/seed_<s>; --merge writes
-results/<system>/results.json and results/<system>/clipping.png.
+normalisation multipliers) to results/<system>/max_norm_<m>/seed_<s>; --merge reads
+every run and writes results/summary.json (validation MSE per seed, geometric mean,
+min, max), results/validation.png and results/<system>/clipping-max_norm_<m>.png.
 """
 
 import argparse
-import json
 import dataclasses
+import json
 import sys
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-import torch  # noqa: E402
+import numpy as np
+import torch
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
@@ -41,7 +38,9 @@ from dafx22_fno.datasets import split  # noqa: E402
 from dafx22_fno.modules.fno_gru import FNO_GRU_1d  # noqa: E402
 from dafx22_fno.modules.fno_ref import FNO_Markov_1d  # noqa: E402
 from dafx22_fno.modules.fno_rnn import FNO_RNN_1d  # noqa: E402
+from dafx22_fno.sweep_plots import MODEL_LABELS, plot_training, plot_validation  # noqa: E402
 from dafx22_fno.training import (  # noqa: E402
+    CONDITIONS,
     Hyperparameters,
     save_models,
     to_lists,
@@ -54,9 +53,7 @@ from dafx22_fno.training import (  # noqa: E402
 WIDTHS = {"string": 16, "nonlinear_string": 32}
 HYPERPARAMETERS = Hyperparameters(lr=2e-4, max_lr=1e-3, weight_decay=1e-4, max_norm=1.0)
 NAMES = ("gru", "rnn", "ref")
-LABELS = {"gru": "FGRU", "rnn": "FRNN", "ref": "REF"}
-COLORS = {"gru": "#eb6834", "rnn": "#1baf7a", "ref": "#2a78d6"}
-STYLES = {"joint": "-", "separate": "--"}
+LABELS = MODEL_LABELS
 
 
 def load(path, val_split=0.1):
@@ -88,51 +85,72 @@ def build_models(size, seed, width):
     }
 
 
-def plot(results, path):
-    fig, axes = plt.subplots(1, 3, figsize=(10, 2.9), layout="constrained")
-    panels = (
-        ("mse", "training MSE", True),
-        ("norm", "gradient norm before clipping", True),
-        ("scale", "gradient scale applied by clipping", False),
-    )
-    for ax, (key, ylabel, log_y) in zip(axes, panels):
-        for condition, res in results.items():
-            for name in NAMES:
-                ax.plot(
-                    np.arange(1, len(res["log"][key][name]) + 1),
-                    res["log"][key][name],
-                    STYLES[condition],
-                    color=COLORS[name],
-                    lw=1.5,
-                    label=f"{LABELS[name]}, {condition}",
-                )
-        ax.set(xlabel="epoch", ylabel=ylabel)
-        if log_y:
-            ax.set_yscale("log")
-        ax.spines[["top", "right"]].set_visible(False)
-    fig.legend(
-        *axes[0].get_legend_handles_labels(),
-        loc="outside right center",
-        frameon=False,
-        fontsize=7,
-    )
-    fig.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-
-
-def merge(out_dir):
-    """Combine <out_dir>/{joint,separate}.json into results.json and clipping.png."""
-    results = {
-        condition: json.loads((out_dir / f"{condition}.json").read_text())
-        for condition in ("joint", "separate")
+def load_runs(results_dir):
+    """{system: {max norm: {condition: [run per seed]}}} from results/<system>/max_norm_*/seed_*/."""
+    runs = {}
+    for path in sorted(results_dir.glob("*/max_norm_*/seed_*/*.json")):
+        run = json.loads(path.read_text())
+        config = run["config"]
+        max_norm = float(config.get("max_norm", 1.0))  # the first runs predate --max-norm
+        by_condition = runs.setdefault(config["system"], {}).setdefault(max_norm, {})
+        by_condition.setdefault(config["condition"], []).append(run)
+    return {
+        system: dict(sorted(by_norm.items())) for system, by_norm in sorted(runs.items())
     }
-    (out_dir / "results.json").write_text(json.dumps(results, indent=2) + "\n")
-    plot(results, out_dir / "clipping.png")
-    for condition, res in results.items():
-        summary = ", ".join(
-            f"{LABELS[n]} {res['validation'][n]['val_mse']:.3e}" for n in NAMES
-        )
-        print(f"{condition}: validation MSE {summary}")
+
+
+def merge(results_dir):
+    """Figures and summary.json over seeds of every run in results_dir."""
+    runs = load_runs(results_dir)
+    summary, validation = {}, {}
+    for system, by_norm in runs.items():
+        validation[system] = {}
+        for max_norm, by_condition in by_norm.items():
+            rows = [
+                (condition, [run["log"] for run in by_condition[condition]], condition == "joint")
+                for condition in CONDITIONS
+                if condition in by_condition
+            ]
+            plot_training(
+                rows,
+                results_dir / system / f"clipping-max_norm_{max_norm:g}.png",
+                f"{system}, max norm {max_norm:g}",
+            )
+            validation[system][f"{max_norm:g}"] = {
+                condition: {
+                    name: [run["validation"][name]["val_mse"] for run in by_condition[condition]]
+                    for name in NAMES
+                }
+                for condition in CONDITIONS
+                if condition in by_condition
+            }
+            summary.setdefault(system, {})[f"{max_norm:g}"] = {
+                condition: {
+                    "seeds": [run["config"]["seed"] for run in by_condition[condition]],
+                    **{
+                        name: {
+                            "val_mse": values,
+                            "geometric_mean": float(np.exp(np.mean(np.log(values)))),
+                            "min": min(values),
+                            "max": max(values),
+                        }
+                        for name, values in by_model.items()
+                    },
+                }
+                for condition, by_model in validation[system][f"{max_norm:g}"].items()
+            }
+    plot_validation(validation, results_dir / "validation.png", "max norm")
+    (results_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+    for system, by_norm in summary.items():
+        for max_norm, by_condition in by_norm.items():
+            for condition, res in by_condition.items():
+                line = ", ".join(
+                    f"{LABELS[n]} {res[n]['geometric_mean']:.3e} "
+                    f"[{res[n]['min']:.1e}, {res[n]['max']:.1e}]"
+                    for n in NAMES
+                )
+                print(f"{system}, max norm {max_norm}, {condition} "
+                      f"(seeds {res['seeds']}): {line}")
 
 
 def main():
@@ -164,16 +182,20 @@ def main():
         help="default: analysis/gradient_clipping/results/<system>/"
         "max_norm_<max norm>/seed_<seed>",
     )
-    parser.add_argument("--merge", action="store_true", help="merge both conditions")
+    parser.add_argument(
+        "--merge",
+        action="store_true",
+        help="figures and summary over all runs in --out-dir (default: results/)",
+    )
     args = parser.parse_args()
+    if args.merge:
+        merge(args.out_dir or HERE / "results")
+        return
     data_path = args.data or Path(f"output/datasets/{args.system}-n_1024-seed_0.npy")
     out_dir = args.out_dir or (
         HERE / "results" / args.system / f"max_norm_{args.max_norm:g}" / f"seed_{args.seed}"
     )
     out_dir.mkdir(parents=True, exist_ok=True)
-    if args.merge:
-        merge(out_dir)
-        return
     if args.condition is None:
         parser.error("--condition is required unless --merge is given")
     if args.threads:

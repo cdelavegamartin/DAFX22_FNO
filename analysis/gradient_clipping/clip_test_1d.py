@@ -23,7 +23,6 @@ results/<system>/results.json and results/<system>/clipping.png.
 import argparse
 import json
 import sys
-import time
 from pathlib import Path
 
 import matplotlib
@@ -40,11 +39,12 @@ from dafx22_fno.datasets import split  # noqa: E402
 from dafx22_fno.modules.fno_gru import FNO_GRU_1d  # noqa: E402
 from dafx22_fno.modules.fno_ref import FNO_Markov_1d  # noqa: E402
 from dafx22_fno.modules.fno_rnn import FNO_RNN_1d  # noqa: E402
+from dafx22_fno.training import Hyperparameters, to_lists, train, validate  # noqa: E402
 
 # Model width of train_1d_string.py and train_1d_nonlinear_string.py at commit
 # e08b4b0; the other settings are the same for both
 WIDTHS = {"string": 16, "nonlinear_string": 32}
-LR, MAX_LR, WEIGHT_DECAY, MAX_NORM = 2e-4, 1e-3, 1e-4, 1.0
+HYPERPARAMETERS = Hyperparameters(lr=2e-4, max_lr=1e-3, weight_decay=1e-4, max_norm=1.0)
 NAMES = ("gru", "rnn", "ref")
 LABELS = {"gru": "FGRU", "rnn": "FRNN", "ref": "REF"}
 COLORS = {"gru": "#eb6834", "rnn": "#1baf7a", "ref": "#2a78d6"}
@@ -77,104 +77,6 @@ def build_models(size, seed, width):
         "gru": FNO_GRU_1d(2, 2, size, width=width),
         "rnn": FNO_RNN_1d(2, 2, size, depth=3, width=width),
         "ref": FNO_Markov_1d(2, 2, size, depth=3, width=width),
-    }
-
-
-def grad_norm(params):
-    grads = [p.grad.detach().flatten() for p in params if p.grad is not None]
-    return float(torch.linalg.vector_norm(torch.cat(grads)))
-
-
-def make_optimisers(models, condition, epochs, steps_per_epoch):
-    """One optimiser over all parameters (joint) or one per model (separate)."""
-    groups = (
-        [[p for m in models.values() for p in m.parameters()]]
-        if condition == "joint"
-        else [list(m.parameters()) for m in models.values()]
-    )
-    optimisers = [torch.optim.AdamW(g, lr=LR, weight_decay=WEIGHT_DECAY) for g in groups]
-    schedulers = [
-        torch.optim.lr_scheduler.OneCycleLR(
-            o, max_lr=MAX_LR, epochs=epochs, steps_per_epoch=steps_per_epoch
-        )
-        for o in optimisers
-    ]
-    return groups, optimisers, schedulers
-
-
-def train(models, data, condition, epochs, batch_size, seed, device):
-    x_train, y_train = data
-    loader = torch.utils.data.DataLoader(
-        torch.utils.data.TensorDataset(x_train, y_train),
-        batch_size=batch_size,
-        shuffle=True,
-        generator=torch.Generator().manual_seed(seed),
-    )
-    groups, optimisers, schedulers = make_optimisers(
-        models, condition, epochs, len(loader)
-    )
-    log = {key: {n: np.zeros(epochs) for n in NAMES} for key in ("mse", "norm", "scale")}
-    log["joint_norm"] = np.zeros(epochs)
-    for ep in range(epochs):
-        tic = time.time()
-        sums = {key: {n: 0.0 for n in NAMES} for key in ("mse", "norm", "scale")}
-        joint_sum = 0.0
-        for x, y in loader:
-            x, y = x.to(device), y.to(device)
-            for o in optimisers:
-                o.zero_grad()
-            for name, model in models.items():
-                loss = torch.log10(
-                    torch.nn.functional.mse_loss(model(x[:, 0], num_time_steps=y.shape[1]), y)
-                )
-                loss.backward()
-                sums["mse"][name] += 10 ** loss.item()
-            # Gradient norms before clipping
-            norms = {n: grad_norm(m.parameters()) for n, m in models.items()}
-            joint = float(np.sqrt(sum(v**2 for v in norms.values())))
-            for group in groups:
-                torch.nn.utils.clip_grad_norm_(group, MAX_NORM)
-            for name in models:
-                applied = joint if condition == "joint" else norms[name]
-                sums["norm"][name] += norms[name]
-                sums["scale"][name] += min(1.0, MAX_NORM / applied)
-            joint_sum += joint
-            for o in optimisers:
-                o.step()
-            for s in schedulers:
-                s.step()
-        for key in sums:
-            for name in models:
-                log[key][name][ep] = sums[key][name] / len(loader)
-        log["joint_norm"][ep] = joint_sum / len(loader)
-        mse = ", ".join(f"{n} {log['mse'][n][ep]:.2e}" for n in models)
-        print(
-            f"\r  {condition} epoch {ep + 1}/{epochs}: {mse} "
-            f"({time.time() - tic:.1f} s/epoch)",
-            end="",
-            flush=True,
-        )
-    print()
-    return log
-
-
-@torch.no_grad()
-def validate(models, x_val, y_val, device):
-    x_val, y_val = x_val.to(device), y_val.to(device)
-    out = {}
-    for name, model in models.items():
-        err = (model(x_val[:, 0], num_time_steps=y_val.shape[1]) - y_val) ** 2
-        out[name] = {
-            "val_mse": float(err.mean()),
-            "val_mse_per_step": err.mean(dim=(0, 2, 3)).tolist(),
-        }
-    return out
-
-
-def to_lists(log):
-    return {
-        k: ({n: v.tolist() for n, v in val.items()} if isinstance(val, dict) else val.tolist())
-        for k, val in log.items()
     }
 
 
@@ -268,6 +170,7 @@ def main():
         models,
         (x_train, y_train),
         args.condition,
+        HYPERPARAMETERS,
         args.epochs,
         args.batch_size,
         args.seed,

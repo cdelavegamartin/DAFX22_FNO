@@ -1,0 +1,6 @@
+--layer original --seed 0
+--layer original --seed 1
+--layer original --seed 2
+--layer full --seed 0
+--layer full --seed 1
+--layer full --seed 2

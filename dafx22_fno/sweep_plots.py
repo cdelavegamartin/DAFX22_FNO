@@ -137,3 +137,39 @@ def plot_validation(panels, path, xlabel):
     fig.legend(handles=handles, loc="outside lower center", ncol=len(names), frameon=False)
     fig.savefig(path, dpi=150)
     plt.close(fig)
+
+
+def plot_per_step(panels, path, train_steps):
+    """Validation MSE per output step: geometric mean over seeds and min-max band.
+
+    panels: {panel title: {model: [per-step validation MSE per seed]}}; panels share the
+    y-axis, and a vertical line marks the end of the training horizon.
+    """
+    fig, axes = plt.subplots(
+        1, len(panels), figsize=(5 * len(panels), 3.4),
+        sharey=True, layout="constrained", squeeze=False,
+    )
+    names = []
+    for ax, (panel_title, by_model) in zip(axes[0], panels.items()):
+        for name, curves in by_model.items():
+            if name not in names:
+                names.append(name)
+            stacked = np.stack(curves)
+            steps = np.arange(1, stacked.shape[1] + 1)
+            ax.fill_between(steps, stacked.min(0), stacked.max(0), color=MODEL_COLORS[name], alpha=0.2, lw=0)
+            ax.plot(steps, np.exp(np.log(stacked).mean(0)), color=MODEL_COLORS[name], lw=1.5)
+        ax.axvline(train_steps, color=SHARED_COLOR, lw=1, ls=":")
+        ax.annotate(
+            "training horizon", (train_steps, 1), xycoords=("data", "axes fraction"),
+            xytext=(-4, -4), textcoords="offset points", ha="right", va="top",
+            fontsize=8, color=SHARED_COLOR,
+        )
+        ax.set(yscale="log", title=panel_title, xlabel="output step")
+        ax.grid(True, color="#d8d7d2", lw=0.5)
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[0][0].set_ylabel("validation MSE")
+    handles = [Line2D([], [], color=MODEL_COLORS[n], lw=1.5, label=MODEL_LABELS[n]) for n in names]
+    handles.append(Patch(color=SHARED_COLOR, alpha=0.2, label="min-max over seeds"))
+    fig.legend(handles=handles, loc="outside lower center", ncol=len(handles), frameon=False)
+    fig.savefig(path, dpi=150)
+    plt.close(fig)

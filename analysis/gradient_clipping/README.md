@@ -15,18 +15,35 @@ Per epoch, the script logs each model's training MSE, its gradient norm before c
 
 ## Run
 
-Each condition needs about 8 GB of memory (autograd over 119 steps at batch 512); on 14 CPU threads an epoch takes about 30 s, so the paper's 5000 epochs need a GPU.
+`--system` selects the linear (`string`, width 16) or the tension-modulated string (`nonlinear_string`, width 32); the other settings are the same for both, as in the paper.
+Each condition needs about 8 GB of memory (autograd over 119 steps at batch 512); the paper's 5000 epochs need a GPU.
 
 ```bash
 uv sync --extra cu126
-uv run python generate_dataset.py string   # output/datasets/string-n_1024-seed_0.npy
-uv run python analysis/gradient_clipping/clip_test_1d.py --condition joint --device cuda
-uv run python analysis/gradient_clipping/clip_test_1d.py --condition separate --device cuda
-uv run python analysis/gradient_clipping/clip_test_1d.py --merge joint separate
+uv run python generate_dataset.py string             # output/datasets/string-n_1024-seed_0.npy
+uv run python generate_dataset.py nonlinear_string   # output/datasets/nonlinear_string-n_1024-seed_0.npy
+uv run python analysis/gradient_clipping/clip_test_1d.py --system string --condition joint --device cuda
+uv run python analysis/gradient_clipping/clip_test_1d.py --system string --condition separate --device cuda
+uv run python analysis/gradient_clipping/clip_test_1d.py --system string --merge
 ```
 
-The two conditions are independent and MAY run as parallel jobs; `--data` selects another dataset.
-`--merge` writes `results.json` (validation MSE per model, per-step validation MSE, training logs) and `figures/clipping_1d.png` (training MSE, gradient norms and clipping scale per model and condition).
+Each run writes `results/<system>/<condition>.json`; `--merge` writes `results/<system>/results.json` (validation MSE per model, per-step validation MSE, training logs) and `results/<system>/clipping.png` (training MSE, gradient norms and clipping scale per model and condition).
+`--data` and `--out-dir` override the default paths.
+
+### SLURM
+
+`clip_test.sbatch` runs the 4 combinations (string, nonlinear_string) x (joint, separate) as array tasks 0–3, one GPU each.
+From the repository root, after `uv sync --extra cu126` and generating both datasets:
+
+```bash
+sbatch analysis/gradient_clipping/clip_test.sbatch
+# afterwards, on any node:
+uv run python analysis/gradient_clipping/clip_test_1d.py --system string --merge
+uv run python analysis/gradient_clipping/clip_test_1d.py --system nonlinear_string --merge
+```
+
+Arguments after the script name go to `clip_test_1d.py`, e.g. a one-epoch check: `sbatch analysis/gradient_clipping/clip_test.sbatch --epochs 1`.
+Account, partition, runtime and resources are in the `#SBATCH` lines.
 
 ## Expected signature
 

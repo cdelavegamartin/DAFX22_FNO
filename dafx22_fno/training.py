@@ -111,15 +111,20 @@ def train(models, data, condition, hp, epochs, batch_size, seed, device):
 
 
 @torch.no_grad()
-def validate(models, x_val, y_val, device):
-    """Validation MSE per model, overall and per output step."""
+def validate(models, x_val, y_val, device, train_steps=None):
+    """Validation MSE per model, overall and per output step.
+
+    With `train_steps`, `val_mse` covers the first train_steps output steps (the paper's
+    metric) and `val_mse_per_step` covers all steps of y_val (extrapolation).
+    """
     x_val, y_val = x_val.to(device), y_val.to(device)
+    steps = train_steps or y_val.shape[1]
     step_axes = (0,) + tuple(range(2, y_val.ndim))
     out = {}
     for name, model in models.items():
         err = (model(x_val[:, 0], num_time_steps=y_val.shape[1]) - y_val) ** 2
         out[name] = {
-            "val_mse": float(err.mean()),
+            "val_mse": float(err[:, :steps].mean()),
             "val_mse_per_step": err.mean(dim=step_axes).tolist(),
         }
     return out

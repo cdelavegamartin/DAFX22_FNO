@@ -11,11 +11,13 @@ This script trains the three models under two conditions that differ only in cli
 Both start from the same initial weights and see the same batches.
 AdamW and OneCycleLR act per parameter, so the optimisers are equivalent across conditions.
 
-Usage:
+Usage (system: string or nonlinear_string):
   uv run python generate_dataset.py string
-  uv run python analysis/gradient_clipping/clip_test_1d.py --condition joint --tag joint
-  uv run python analysis/gradient_clipping/clip_test_1d.py --condition separate --tag separate
-  uv run python analysis/gradient_clipping/clip_test_1d.py --merge joint separate
+  uv run python analysis/gradient_clipping/clip_test_1d.py --system string --condition joint
+  uv run python analysis/gradient_clipping/clip_test_1d.py --system string --condition separate
+  uv run python analysis/gradient_clipping/clip_test_1d.py --system string --merge
+Each run writes results/<system>/<condition>.json; --merge writes
+results/<system>/results.json and results/<system>/clipping.png.
 """
 
 import argparse
@@ -39,8 +41,9 @@ from dafx22_fno.modules.fno_gru import FNO_GRU_1d  # noqa: E402
 from dafx22_fno.modules.fno_ref import FNO_Markov_1d  # noqa: E402
 from dafx22_fno.modules.fno_rnn import FNO_RNN_1d  # noqa: E402
 
-# Settings of train_1d_string.py at commit e08b4b0
-WIDTH = 16
+# Model width of train_1d_string.py and train_1d_nonlinear_string.py at commit
+# e08b4b0; the other settings are the same for both
+WIDTHS = {"string": 16, "nonlinear_string": 32}
 LR, MAX_LR, WEIGHT_DECAY, MAX_NORM = 2e-4, 1e-3, 1e-4, 1.0
 NAMES = ("gru", "rnn", "ref")
 LABELS = {"gru": "FGRU", "rnn": "FRNN", "ref": "REF"}
@@ -67,13 +70,13 @@ def load(path, val_split=0.1):
     return x_train, y_train, x_val, y_val
 
 
-def build_models(size, seed):
+def build_models(size, seed, width):
     """FGRU, FRNN, REF in the order and seeding of e08b4b0."""
     torch.manual_seed(seed)
     return {
-        "gru": FNO_GRU_1d(2, 2, size, width=WIDTH),
-        "rnn": FNO_RNN_1d(2, 2, size, depth=3, width=WIDTH),
-        "ref": FNO_Markov_1d(2, 2, size, depth=3, width=WIDTH),
+        "gru": FNO_GRU_1d(2, 2, size, width=width),
+        "rnn": FNO_RNN_1d(2, 2, size, depth=3, width=width),
+        "ref": FNO_Markov_1d(2, 2, size, depth=3, width=width),
     }
 
 
@@ -207,16 +210,14 @@ def plot(results, path):
     plt.close(fig)
 
 
-def merge(tags):
-    results = {}
-    for tag in tags:
-        part = json.loads((HERE / f"results_{tag}.json").read_text())
-        results[part["config"]["condition"]] = part
-    (HERE / "results.json").write_text(json.dumps(results, indent=2) + "\n")
-    (HERE / "figures").mkdir(exist_ok=True)
-    plot(results, HERE / "figures" / "clipping_1d.png")
-    for tag in tags:
-        (HERE / f"results_{tag}.json").unlink()
+def merge(out_dir):
+    """Combine <out_dir>/{joint,separate}.json into results.json and clipping.png."""
+    results = {
+        condition: json.loads((out_dir / f"{condition}.json").read_text())
+        for condition in ("joint", "separate")
+    }
+    (out_dir / "results.json").write_text(json.dumps(results, indent=2) + "\n")
+    plot(results, out_dir / "clipping.png")
     for condition, res in results.items():
         summary = ", ".join(
             f"{LABELS[n]} {res['validation'][n]['val_mse']:.3e}" for n in NAMES
@@ -226,6 +227,7 @@ def merge(tags):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("--system", choices=sorted(WIDTHS), default="string")
     parser.add_argument("--condition", choices=("joint", "separate"))
     parser.add_argument("--epochs", type=int, default=5000)
     parser.add_argument("--batch-size", type=int, default=512)
@@ -235,21 +237,33 @@ def main():
     parser.add_argument(
         "--data",
         type=Path,
-        default=Path("output/datasets/string-n_1024-seed_0.npy"),
-        help="string dataset from generate_dataset.py",
+        default=None,
+        help="dataset from generate_dataset.py "
+        "(default: output/datasets/<system>-n_1024-seed_0.npy)",
     )
-    parser.add_argument("--tag", default=None)
-    parser.add_argument("--merge", nargs="+", metavar="TAG")
+    parser.add_argument(
+        "--out-dir",
+        type=Path,
+        default=None,
+        help="default: analysis/gradient_clipping/results/<system>",
+    )
+    parser.add_argument("--merge", action="store_true", help="merge both conditions")
     args = parser.parse_args()
+    data_path = args.data or Path(f"output/datasets/{args.system}-n_1024-seed_0.npy")
+    out_dir = args.out_dir or HERE / "results" / args.system
+    out_dir.mkdir(parents=True, exist_ok=True)
     if args.merge:
-        merge(args.merge)
+        merge(out_dir)
         return
+    if args.condition is None:
+        parser.error("--condition is required unless --merge is given")
     if args.threads:
         torch.set_num_threads(args.threads)
 
-    x_train, y_train, x_val, y_val = load(args.data)
+    x_train, y_train, x_val, y_val = load(data_path)
     print(f"data: train {tuple(y_train.shape)}, validation {tuple(y_val.shape)}")
-    models = {n: m.to(args.device) for n, m in build_models(x_train.shape[2], args.seed).items()}
+    models = build_models(x_train.shape[2], args.seed, WIDTHS[args.system])
+    models = {n: m.to(args.device) for n, m in models.items()}
     log = train(
         models,
         (x_train, y_train),
@@ -261,14 +275,18 @@ def main():
     )
     result = {
         "config": {
-            k: str(getattr(args, k)) if k == "data" else getattr(args, k)
-            for k in ("condition", "data", "epochs", "batch_size", "seed")
+            "system": args.system,
+            "condition": args.condition,
+            "data": str(data_path),
+            "width": WIDTHS[args.system],
+            "epochs": args.epochs,
+            "batch_size": args.batch_size,
+            "seed": args.seed,
         },
         "validation": validate(models, x_val, y_val, args.device),
         "log": to_lists(log),
     }
-    tag = args.tag or args.condition
-    (HERE / f"results_{tag}.json").write_text(json.dumps(result, indent=2) + "\n")
+    (out_dir / f"{args.condition}.json").write_text(json.dumps(result, indent=2) + "\n")
 
 
 if __name__ == "__main__":

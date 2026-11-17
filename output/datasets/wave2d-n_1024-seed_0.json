@@ -1,0 +1,44 @@
+{
+  "system": "wave2d",
+  "shape": [
+    1024,
+    34,
+    40,
+    38,
+    3
+  ],
+  "channels": [
+    "pressure",
+    "velocity_x",
+    "velocity_y"
+  ],
+  "seed": 0,
+  "val_split": 0.1,
+  "settings": {
+    "solver": {
+      "dur": 0.0007,
+      "Fs": 48000,
+      "lx": 1,
+      "ly": 0.95,
+      "spatial_delta": 0.025,
+      "modes": 25
+    },
+    "channels": [
+      "pressure",
+      "velocity_x",
+      "velocity_y"
+    ]
+  },
+  "training_split": {
+    "mean": [
+      -1.6149554252624512,
+      -0.055885978043079376,
+      -0.010744805447757244
+    ],
+    "std": [
+      987892.625,
+      1642.6131591796875,
+      1705.544921875
+    ]
+  }
+}

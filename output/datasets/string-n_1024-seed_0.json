@@ -1,0 +1,37 @@
+{
+  "system": "string",
+  "shape": [
+    1024,
+    120,
+    65,
+    2
+  ],
+  "channels": [
+    "deflection",
+    "velocity"
+  ],
+  "seed": 0,
+  "val_split": 0.1,
+  "settings": {
+    "solver": {
+      "dur": 0.0025,
+      "Fs": 48000,
+      "delta_x": 0.01,
+      "d1": 0.1
+    },
+    "channels": [
+      "deflection",
+      "velocity"
+    ]
+  },
+  "training_split": {
+    "mean": [
+      -15.495460510253906,
+      0.03165631741285324
+    ],
+    "std": [
+      332.00848388671875,
+      0.08725598454475403
+    ]
+  }
+}

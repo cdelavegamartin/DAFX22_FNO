@@ -133,6 +133,7 @@ def plot_validation(panels, path, xlabel):
                    label=f"{condition} (geometric mean)")
         )
     handles.append(Line2D([], [], ls="", marker="o", markersize=3, color=SHARED_COLOR, label="one seed"))
-    fig.legend(handles=handles, loc="outside lower center", ncol=len(handles), frameon=False)
+    # Models on the first row, markers on the second, so the legend fits one panel
+    fig.legend(handles=handles, loc="outside lower center", ncol=len(names), frameon=False)
     fig.savefig(path, dpi=150)
     plt.close(fig)

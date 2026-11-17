@@ -21,13 +21,11 @@ Each condition needs about 8 GB of memory (autograd over 119 steps at batch 512)
 
 ```bash
 uv sync --extra cu126
-uv run --extra cu126 python generate_dataset.py string             # output/datasets/string-n_1024-seed_0.npy
-uv run --extra cu126 python generate_dataset.py nonlinear_string   # output/datasets/nonlinear_string-n_1024-seed_0.npy
-uv run --extra cu126 python analysis/gradient_clipping/clip_test_1d.py --system string --condition joint --seed 1 --max-norm 10 --device cuda
-uv run --extra cu126 python analysis/gradient_clipping/clip_test_1d.py --merge
+uv run python generate_dataset.py string             # output/datasets/string-n_1024-seed_0.npy
+uv run python generate_dataset.py nonlinear_string   # output/datasets/nonlinear_string-n_1024-seed_0.npy
+uv run python analysis/gradient_clipping/clip_test_1d.py --system string --condition joint --seed 1 --max-norm 10 --device cuda
+uv run python analysis/gradient_clipping/clip_test_1d.py --merge
 ```
-
-`uv run` needs the backend extra (`--extra cpu` or `--extra cu126`); without it, it re-syncs the environment and removes torch.
 
 Each run writes `results/<system>/max_norm_<m>/seed_<s>/<condition>.json` (configuration, validation MSE per model and per step, training logs) and `<condition>-models.pt` (state dicts and normalisation multipliers, not tracked by git).
 `--merge` reads every run and writes:
@@ -48,7 +46,7 @@ From the repository root, after `uv sync --extra cu126` and generating both data
 sbatch analysis/gradient_clipping/clip_sweep.sbatch              # all 44 runs
 sbatch -a 1-44%20 analysis/gradient_clipping/clip_sweep.sbatch   # at most 20 at a time
 # afterwards, on any node:
-uv run --extra cu126 python analysis/gradient_clipping/clip_test_1d.py --merge
+uv run python analysis/gradient_clipping/clip_test_1d.py --merge
 ```
 
 Arguments after the script name go to `clip_test_1d.py`, e.g. a one-epoch check: `sbatch -a 1 analysis/gradient_clipping/clip_sweep.sbatch --epochs 1`.

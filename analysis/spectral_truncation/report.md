@@ -190,6 +190,15 @@ MSE is on data normalised to unit standard deviation per channel; a zero predict
 
 These numbers come from one seed, a small dataset and 300 epochs; they show the direction and size of the effect, not the values a full-scale run would reach.
 
+## Full-scale sweep (issue #2)
+
+`wave2d_sweep.py` repeats the 2D wave training of `train_2d_wave.py` at `e08b4b0` at full scale: 1024 trajectories, 33 output steps, width 8, batch 400, 5000 epochs, one AdamW and OneCycleLR over FGRU, FRNN and REF, and joint clipping at 1.
+`--layer original` keeps `FourierConv2d`; `--layer full` replaces it in FGRU and FRNN by `FourierConv2dFullSpectrum`, with the same initial weights for kx >= 0.
+REF has no `FourierConv2d`, so it starts from the same weights under both layers; joint clipping still couples its training to the other two models.
+The models train on the first 33 output steps of a 66-step dataset, and validation reports the MSE over 33 steps (the paper's metric) and per step over 66.
+Each run saves its state dicts and normalisation multipliers (`models.pt`, not tracked by git), so the paper's example figures can be redrawn without retraining.
+`wave2d_sweep.sbatch` runs {original, full} x seeds 0–2; results are pending.
+
 ## Implications
 
 - The background text (`subsec:spectral-convolution-layers`) holds in 1D only.
@@ -227,5 +236,16 @@ done; wait
 uv run python $R --merge m1 m2 m3 m4 m5 m6 m7
 ```
 
+Full-scale sweep, on a GPU cluster:
+
+```bash
+uv sync --extra cu126
+uv run python generate_dataset.py wave2d --steps 67   # output/datasets/wave2d-n_1024-steps_67-seed_0.npy
+sbatch analysis/spectral_truncation/wave2d_sweep.sbatch
+# afterwards:
+uv run python analysis/spectral_truncation/wave2d_sweep.py --merge
+```
+
 `compare_spectral_layers.py` writes `results.json` and `figures/fig1`–`fig6`.
 `retrain_full_spectrum.py` writes `retrain_results.json` and `figures/fig7_retrain.png`.
+`wave2d_sweep.py --merge` writes `wave2d_sweep/summary.json`, `validation.png`, `validation_per_step.png` and `training.png`.

@@ -16,7 +16,8 @@ Usage (system: string or nonlinear_string):
   uv run python analysis/gradient_clipping/clip_test_1d.py --system string --condition joint
   uv run python analysis/gradient_clipping/clip_test_1d.py --system string --condition separate
   uv run python analysis/gradient_clipping/clip_test_1d.py --system string --merge
-Each run writes results/<system>/<condition>.json; --merge writes
+Each run writes <condition>.json and <condition>-models.pt (state dicts and
+normalisation multipliers) to results/<system>/max_norm_<m>/seed_<s>; --merge writes
 results/<system>/results.json and results/<system>/clipping.png.
 """
 
@@ -40,7 +41,13 @@ from dafx22_fno.datasets import split  # noqa: E402
 from dafx22_fno.modules.fno_gru import FNO_GRU_1d  # noqa: E402
 from dafx22_fno.modules.fno_ref import FNO_Markov_1d  # noqa: E402
 from dafx22_fno.modules.fno_rnn import FNO_RNN_1d  # noqa: E402
-from dafx22_fno.training import Hyperparameters, to_lists, train, validate  # noqa: E402
+from dafx22_fno.training import (  # noqa: E402
+    Hyperparameters,
+    save_models,
+    to_lists,
+    train,
+    validate,
+)
 
 # Model width of train_1d_string.py and train_1d_nonlinear_string.py at commit
 # e08b4b0; the other settings are the same for both
@@ -53,7 +60,7 @@ STYLES = {"joint": "-", "separate": "--"}
 
 
 def load(path, val_split=0.1):
-    """Normalised (x_train, y_train, x_val, y_val) from a generate_dataset.py array.
+    """Normalised (x_train, y_train, x_val, y_val) and norms from a generate_dataset.py array.
 
     As in e08b4b0, each channel is scaled by the std of the output steps of all
     trajectories, and the last ceil(val_split * n) trajectories validate.
@@ -68,7 +75,7 @@ def load(path, val_split=0.1):
     norms = 1 / torch.std(outputs, dim=(0, 1, 2))
     inputs, outputs = inputs * norms, outputs * norms
     (x_train, x_val), (y_train, y_val) = split(inputs, val_split), split(outputs, val_split)
-    return x_train, y_train, x_val, y_val
+    return x_train, y_train, x_val, y_val, norms
 
 
 def build_models(size, seed, width):
@@ -172,7 +179,7 @@ def main():
     if args.threads:
         torch.set_num_threads(args.threads)
 
-    x_train, y_train, x_val, y_val = load(data_path)
+    x_train, y_train, x_val, y_val, norms = load(data_path)
     print(f"data: train {tuple(y_train.shape)}, validation {tuple(y_val.shape)}")
     models = build_models(x_train.shape[2], args.seed, WIDTHS[args.system])
     models = {n: m.to(args.device) for n, m in models.items()}
@@ -201,6 +208,7 @@ def main():
         "log": to_lists(log),
     }
     (out_dir / f"{args.condition}.json").write_text(json.dumps(result, indent=2) + "\n")
+    save_models(models, norms, out_dir / f"{args.condition}-models.pt")
 
 
 if __name__ == "__main__":

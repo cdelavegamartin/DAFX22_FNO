@@ -26,6 +26,9 @@ output/*
 !output/datasets/
 output/datasets/*.npy
 
+# Trained models of the analyses
+analysis/**/*.pt
+
 # HPC job files
 hpc/**/*.job
 *.job.*

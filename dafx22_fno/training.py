@@ -131,3 +131,16 @@ def to_lists(log):
         for k, val in log.items()
     }
 
+
+def save_models(models, norms, path):
+    """State dicts (on CPU) and normalisation multipliers, to rebuild the models later."""
+    torch.save(
+        {
+            "models": {
+                n: {k: v.cpu() for k, v in m.state_dict().items()}
+                for n, m in models.items()
+            },
+            "norms": norms.cpu(),
+        },
+        path,
+    )

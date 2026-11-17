@@ -10,6 +10,8 @@ The original scripts did not seed numpy; here numpy is seeded with `seed`.
 following steps are the target.
 """
 
+import copy
+
 import numpy as np
 
 from dafx22_fno.generators.string_solver import StringSolver
@@ -74,10 +76,22 @@ def _wave2d(num, settings):
 _SIMULATORS = {"string": _string, "nonlinear_string": _nonlinear_string, "wave2d": _wave2d}
 
 
-def simulate(system, num_variations=1024, seed=0):
+def settings(system, steps=None):
+    """Settings of a system; steps sets the number of time steps (input included).
+
+    The solvers use round(dur * Fs) time steps, so dur = steps / Fs gives exactly
+    `steps`; without it the duration of the paper is kept.
+    """
+    result = copy.deepcopy(SYSTEMS[system])
+    if steps is not None:
+        result["solver"]["dur"] = steps / result["solver"]["Fs"]
+    return result
+
+
+def simulate(system, num_variations=1024, seed=0, steps=None):
     """Raw trajectories (trajectories, time steps, x, [y,] channels) as float32."""
     np.random.seed(seed)
-    trajectories = _SIMULATORS[system](num_variations, SYSTEMS[system])
+    trajectories = _SIMULATORS[system](num_variations, settings(system, steps))
     # Move the time axis (second to last) to the front of each trajectory
     return np.stack([np.moveaxis(t, -2, 0) for t in trajectories]).astype(np.float32)
 

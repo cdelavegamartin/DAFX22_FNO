@@ -7,7 +7,10 @@
 # (output/datasets/wave2d-n_1024-steps_67-seed_0.npy, 66 output steps):
 #   sbatch analysis/spectral_truncation/wave2d_sweep.sbatch           # all 6 runs
 #   sbatch -a 1 analysis/spectral_truncation/wave2d_sweep.sbatch      # one line
-# Arguments after the script name go to wave2d_sweep.py, e.g. --epochs 1.
+# Arguments after the script name go to wave2d_sweep.py. A smoke test MUST write
+# elsewhere, or --merge mixes it with the real runs; run one first to check GPU
+# memory and the time per epoch:
+#   sbatch -a 1 analysis/spectral_truncation/wave2d_sweep.sbatch --epochs 1 --out-dir output/smoke
 #SBATCH -J dafx22-wave2d
 #SBATCH -o %x.o%A_%a           # jobname.o<job id>_<array index>
 #SBATCH -A pilot_andrena

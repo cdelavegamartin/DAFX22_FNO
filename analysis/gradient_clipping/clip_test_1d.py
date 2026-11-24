@@ -34,7 +34,7 @@ import torch
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
 
-from dafx22_fno.datasets import split  # noqa: E402
+from dafx22_fno.datasets import load_normalised  # noqa: E402
 from dafx22_fno.modules.fno_gru import FNO_GRU_1d  # noqa: E402
 from dafx22_fno.modules.fno_ref import FNO_Markov_1d  # noqa: E402
 from dafx22_fno.modules.fno_rnn import FNO_RNN_1d  # noqa: E402
@@ -54,25 +54,6 @@ WIDTHS = {"string": 16, "nonlinear_string": 32}
 HYPERPARAMETERS = Hyperparameters(lr=2e-4, max_lr=1e-3, weight_decay=1e-4, max_norm=1.0)
 NAMES = ("gru", "rnn", "ref")
 LABELS = MODEL_LABELS
-
-
-def load(path, val_split=0.1):
-    """Normalised (x_train, y_train, x_val, y_val) and norms from a generate_dataset.py array.
-
-    As in e08b4b0, each channel is scaled by the std of the output steps of all
-    trajectories, and the last ceil(val_split * n) trajectories validate.
-    """
-    if not path.exists():
-        raise FileNotFoundError(
-            f"{path} not found; create it with: "
-            "uv run python generate_dataset.py string --output " + str(path)
-        )
-    data = torch.from_numpy(np.load(path))
-    inputs, outputs = data[:, :1], data[:, 1:]
-    norms = 1 / torch.std(outputs, dim=(0, 1, 2))
-    inputs, outputs = inputs * norms, outputs * norms
-    (x_train, x_val), (y_train, y_val) = split(inputs, val_split), split(outputs, val_split)
-    return x_train, y_train, x_val, y_val, norms
 
 
 def build_models(size, seed, width):
@@ -201,7 +182,7 @@ def main():
     if args.threads:
         torch.set_num_threads(args.threads)
 
-    x_train, y_train, x_val, y_val, norms = load(data_path)
+    x_train, y_train, x_val, y_val, norms = load_normalised(data_path)
     print(f"data: train {tuple(y_train.shape)}, validation {tuple(y_val.shape)}")
     models = build_models(x_train.shape[2], args.seed, WIDTHS[args.system])
     models = {n: m.to(args.device) for n, m in models.items()}

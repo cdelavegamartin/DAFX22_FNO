@@ -35,3 +35,8 @@ The original scripts did not seed numpy, so their exact datasets cannot be regen
 
 `analysis/spectral_truncation/` compares the spectral layers of FGRU/FRNN (`FourierConv2d`) and REF (`SpectralConv2d`).
 `FourierConv2d` drops the negative-kx half of the 2D spectrum; see `analysis/spectral_truncation/report.md`.
+`analysis/spectral_truncation/wave2d_sweep.py` retrains the 2D wave models at full scale with the original and the full-spectrum layer (issue #2).
+
+## Gradient clipping analysis
+
+`analysis/gradient_clipping/` compares joint and separate gradient clipping on the 1D strings, over seeds and clipping thresholds; see `analysis/gradient_clipping/README.md`.

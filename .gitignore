@@ -21,8 +21,13 @@ legacy/Notebooks/.ipynb_checkpoints/WaveSolver-checkpoint.py
 *ipynb_checkpoints*
 *.asv
 
-# Output directories
-output/
+# Output directories; keep dataset metadata, not the arrays
+output/*
+!output/datasets/
+output/datasets/*.npy
+
+# Trained models of the analyses
+analysis/**/*.pt
 
 # HPC job files
 hpc/**/*.job

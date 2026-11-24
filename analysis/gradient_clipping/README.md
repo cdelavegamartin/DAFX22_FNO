@@ -49,7 +49,8 @@ sbatch -a 1-44%20 analysis/gradient_clipping/clip_sweep.sbatch   # at most 20 at
 uv run python analysis/gradient_clipping/clip_test_1d.py --merge
 ```
 
-Arguments after the script name go to `clip_test_1d.py`, e.g. a one-epoch check: `sbatch -a 1 analysis/gradient_clipping/clip_sweep.sbatch --epochs 1`.
+Arguments after the script name go to `clip_test_1d.py`, e.g. a one-epoch check: `sbatch -a 1 analysis/gradient_clipping/clip_sweep.sbatch --epochs 1 --out-dir output/smoke`.
+A check MUST use `--out-dir`, or `--merge` mixes it with the real runs.
 Account, partition, runtime and resources are in the `#SBATCH` lines.
 
 ## Results (seed 0, max norm 1)

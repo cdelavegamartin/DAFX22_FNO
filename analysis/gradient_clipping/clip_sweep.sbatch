@@ -8,7 +8,9 @@
 #   sbatch analysis/gradient_clipping/clip_sweep.sbatch               # all runs
 #   sbatch -a 1-4 analysis/gradient_clipping/clip_sweep.sbatch        # a subset of lines
 #   sbatch -a 1-44%20 analysis/gradient_clipping/clip_sweep.sbatch    # at most 20 at a time
-# Arguments after the script name go to clip_test_1d.py, e.g. --epochs 1.
+# Arguments after the script name go to clip_test_1d.py. A smoke test MUST write
+# elsewhere, or --merge mixes it with the real runs:
+#   sbatch -a 1 analysis/gradient_clipping/clip_sweep.sbatch --epochs 1 --out-dir output/smoke
 #SBATCH -J dafx22-clip
 #SBATCH -o %x.o%A_%a           # jobname.o<job id>_<array index>
 #SBATCH -A pilot_andrena
